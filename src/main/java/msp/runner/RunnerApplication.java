@@ -1,6 +1,5 @@
 package msp.runner;
 
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import msp.runner.generators.HuntAndKillGenerator;
@@ -11,13 +10,17 @@ import msp.runner.util.Maze;
 public class RunnerApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(RunnerApplication.class, args);
+		// SpringApplication.run(RunnerApplication.class, args);
 
 		MazeGenerator g = new HuntAndKillGenerator();
-		Maze m = g.generateMaze(5, 5);
+		Maze m = g.generateMaze(5, 6);
 		if(m != null){
+			m.printMaze();
 			System.out.println("DONE");
+		}else{
+			System.out.println("NKJDNDVHJHJDNBVHJKBDHK");
 		}
+		
 	}
 
 }

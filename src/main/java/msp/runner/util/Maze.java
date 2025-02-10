@@ -11,8 +11,8 @@ public class Maze {
     private int width;
     private int height;
     private Cell[][] grid;
-    private Cell start;
-    private Cell end;
+    private Coordinate start;
+    private Coordinate end;
 
     public Maze(int width, int height){
         this.width = width;
@@ -39,7 +39,7 @@ public class Maze {
     }
 
     public void setStart(int x, int y){
-        this.start = grid[x][y];
+        this.start = grid[x][y].getCords();
     }
     
     public Cell getCell(int x, int y){
@@ -55,7 +55,37 @@ public class Maze {
         Cell y = getCell(b);
         x.addEdge(b);
         y.addEdge(a);
+    }
 
+    public ArrayList<Coordinate> getNeighbours(Coordinate a){
+        return getCell(a).getNeighbours();
+    }
+
+    public void printMaze(){
+        System.out.println("height: " + height + " width: " + width);
+        System.out.println("Start Cell: " + start);
+        System.out.println("End Cell: " + end);
+        for(int i = 0; i < height; i++){
+            for(int j = 0; j < width; j++){
+                Cell c = grid[j][i];
+                System.out.print(c.getCords());
+                if(j+1 <= width && c.getEdges().contains(new Coordinate(j+1, i))){
+                    System.out.print(" - ");
+                }else{
+                    System.out.print("   ");
+                }
+            }
+            System.out.print("\n");
+            for(int j = 0; j < width; j++){
+                Cell c = grid[j][i];
+                if(i+1 <= height && c.getEdges().contains(new Coordinate(j, i+1))){
+                    System.out.print("  |     ");
+                }else{
+                    System.out.print("        ");
+                }
+            }
+            System.out.print("\n");
+        }
     }
 
 }
