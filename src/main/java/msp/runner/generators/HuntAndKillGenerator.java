@@ -11,8 +11,6 @@ import lombok.NoArgsConstructor;
 import msp.runner.util.Coordinate;
 import msp.runner.util.Maze;
 
-//TODO: LOTS OF BLACK BOXES
-
 @NoArgsConstructor
 public class HuntAndKillGenerator implements MazeGenerator {
     @Override

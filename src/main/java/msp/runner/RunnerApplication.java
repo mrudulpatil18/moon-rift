@@ -1,26 +1,21 @@
 package msp.runner;
 
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import msp.runner.generators.HuntAndKillGenerator;
-import msp.runner.generators.MazeGenerator;
-import msp.runner.util.Maze;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class RunnerApplication {
 
 	public static void main(String[] args) {
-		// SpringApplication.run(RunnerApplication.class, args);
-
-		MazeGenerator g = new HuntAndKillGenerator();
-		Maze m = g.generateMaze(5, 6);
-		if(m != null){
-			m.printMaze();
-			System.out.println("DONE");
-		}else{
-			System.out.println("NKJDNDVHJHJDNBVHJKBDHK");
-		}
-		
+		SpringApplication.run(RunnerApplication.class, args);
 	}
 
 }
+
+
+
+//TODO:
+//	1. GOOOD JOB
+//  2. establish game loop with smooth movements
+//  3. sockets with STOMP ??????????
