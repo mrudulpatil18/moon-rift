@@ -16,6 +16,18 @@ public class RunnerApplication {
 
 
 //TODO:
-//	1. GOOOD JOB
-//  2. establish game loop with smooth movements
-//  3. sockets with STOMP ??????????
+//	1. GOOOD JOB ❌
+//  3. ❌❌❌❌sockets with STOMP ?????????? ❌
+
+//TODO ui: 
+// convert to typescript ✅
+// getNextPaths ✅
+// allow movement with nextPaths ✅
+// game logic :
+//        1. establish sockets
+//        2. send and validate a move in backend ???? UNNECESSARY ?????
+//               possible reasons: anti-cheat -- not required, multiplayer intereaction ? maybe
+//        3. lobby creation, multiplayer
+// smooth movements
+// 3d maze
+// better orbs with light and trails

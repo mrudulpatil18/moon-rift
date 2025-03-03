@@ -8,8 +8,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.NoArgsConstructor;
-import msp.runner.util.Coordinate;
-import msp.runner.util.Maze;
+import msp.runner.model.Coordinate;
+import msp.runner.model.Maze;
 
 @NoArgsConstructor
 public class HuntAndKillGenerator implements MazeGenerator {

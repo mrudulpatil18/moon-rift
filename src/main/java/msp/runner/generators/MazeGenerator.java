@@ -1,6 +1,6 @@
 package msp.runner.generators;
 
-import msp.runner.util.Maze;
+import msp.runner.model.Maze;
 
 public interface MazeGenerator {
     

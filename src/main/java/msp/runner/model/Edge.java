@@ -1,4 +1,4 @@
-package msp.runner.util;
+package msp.runner.model;
 
 public record Edge(Coordinate a, Coordinate b) {
     @Override

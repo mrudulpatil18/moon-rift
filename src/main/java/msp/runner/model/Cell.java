@@ -1,4 +1,4 @@
-package msp.runner.util;
+package msp.runner.model;
 
 import java.util.ArrayList;
 

@@ -1,4 +1,4 @@
-package msp.runner.util;
+package msp.runner.model;
 
 public record Coordinate(int x, int y) {
     @Override
