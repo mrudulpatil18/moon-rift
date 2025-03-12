@@ -18,6 +18,15 @@ public class Cell {
         this.edges = new ArrayList<>();
     }
 
+    public boolean isEdge(Coordinate c){
+        for(Coordinate n : edges){
+            if(n.x() == c.x() && n.y() == c.y()){
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void addEdge(Coordinate x){
         this.edges.add(x);
     }

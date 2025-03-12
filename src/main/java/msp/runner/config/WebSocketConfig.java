@@ -1,6 +1,6 @@
 package msp.runner.config;
 
-import msp.runner.websocket.WebSocketHandler;
+import msp.runner.controller.WebSocketHandler;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;

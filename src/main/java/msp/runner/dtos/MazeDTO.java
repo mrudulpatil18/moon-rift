@@ -1,7 +1,10 @@
-package msp.runner.model;
+package msp.runner.dtos;
 
 import lombok.Getter;
 import lombok.Setter;
+import msp.runner.model.Cell;
+import msp.runner.model.Coordinate;
+import msp.runner.model.Maze;
 
 @Getter
 @Setter
