@@ -45,9 +45,9 @@ public class WebSocketHandler extends TextWebSocketHandler {
             sessions.put(roomId, new HashSet<>());
         }
         sessions.get(roomId).add(session);
-        PlayerMove playerMoveDTO = new PlayerMove(new Coordinate(10,20), new Coordinate(5, 0));
-        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(playerMoveDTO)));
-        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(new Status(PlayerStatus.GET_MAZE_NEW_LEVEL))));
+//        PlayerMove playerMoveDTO = new PlayerMove(new Coordinate(10,20), new Coordinate(5, 0));
+//        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(playerMoveDTO)));
+//        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(new Status(PlayerStatus.GET_MAZE_NEW_LEVEL))));
 
         super.afterConnectionEstablished(session);
     }
@@ -77,11 +77,11 @@ public class WebSocketHandler extends TextWebSocketHandler {
         }
         else{
             PlayerMove playerMove = objectMapper.readValue(message.getPayload(), PlayerMove.class);
-            boolean moveStatus = gameService.handleMove(roomId, playerMove);
-            if(!moveStatus) {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(ServerMessage.INVALID_MOVE)));
+            ServerMessage moveStatus = gameService.handleMove(roomId, playerMove);
+            if(moveStatus != null) {
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(moveStatus)));}
             }
-        }
+
 //        else if (jsonNode.has("type2SpecificField")) {
 //            Type2 type2 = mapper.convertValue(jsonNode, Type2.class);
 //            // ... use type2

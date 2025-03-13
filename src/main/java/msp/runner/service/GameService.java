@@ -8,6 +8,7 @@ import msp.runner.generators.MazeGenerator;
 import msp.runner.model.Game;
 import msp.runner.model.Maze;
 import msp.runner.model.PlayerMove;
+import msp.runner.model.ServerMessage;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -24,8 +25,14 @@ public class GameService {
         activeGames.put(roomId, new Game(roomId));
     }
 
-    public boolean handleMove(String roomId, PlayerMove playerMove) {
-        return activeGames.get(roomId).updatePlayer1State(playerMove);
+    public ServerMessage handleMove(String roomId, PlayerMove playerMove) {
+        if(activeGames.get(roomId).updatePlayer1State(playerMove)){
+            if(activeGames.get(roomId).isMazeSolved()){
+                return ServerMessage.UPDATE_MAZE_LEVEL;
+            }
+            return null;
+        }
+        return ServerMessage.INVALID_MOVE;
     }
 
     public MazeDTO generateNewLevel(String roomId) {

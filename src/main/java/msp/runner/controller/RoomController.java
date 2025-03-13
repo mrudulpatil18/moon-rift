@@ -2,6 +2,7 @@ package msp.runner.controller;
 
 import msp.runner.service.GameService;
 import msp.runner.service.RoomService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,10 +21,10 @@ public class RoomController {
 
     @CrossOrigin
     @PostMapping("/room/create")
-    public String createRoom() {
+    public ResponseEntity<String> createRoom() {
         String roomId = roomCreationService.createRoom();
         gameService.addGame(roomId);
-        return roomId;
+        return new ResponseEntity<>(roomId, HttpStatus.CREATED);
     }
 
 }

@@ -15,8 +15,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class GameState {
     Maze maze;
     List<PlayerMove> playerMoves = new CopyOnWriteArrayList<>();
-    int level = 4;
+    int level = 5;
 
+    boolean isMazeSolved(){
+        Coordinate currPos = playerMoves.isEmpty() ? maze.getStart() : playerMoves.get(playerMoves.size() - 1).getTo();
+        return currPos.x() == maze.getEnd().x() && currPos.y() == maze.getEnd().y();
+    }
 
     // true if successful , false if unsuccessful
     public boolean updateState(PlayerMove playerMove) {

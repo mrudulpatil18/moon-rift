@@ -20,5 +20,9 @@ public class Game {
         return player1State.updateState(playerMove);
     }
 
+    public boolean isMazeSolved() {
+        return player1State.isMazeSolved();
+    }
+
 
 }

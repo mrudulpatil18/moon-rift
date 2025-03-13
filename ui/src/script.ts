@@ -49,20 +49,64 @@ function accountForDPI(canvas:HTMLCanvasElement) {
   canvas.style.height = `${rect.height}px`;
 }
 
-async function fetchMaze(dimension: number) {
-  let response = await fetch(
-    `http://localhost:8080/maze?dimension=${dimension}`,
-    {
-      method: "GET",
-    }
-  );
+async function createRoom() {
+  let response = await fetch(`http://localhost:8080/room/create`, {
+    method: "POST",
+  });
 
-  let data = await response.json();
-  console.log(data);
-  return data;
+  if (!response.ok) {
+    console.error(`Error: ${response.status} ${response.statusText}`);
+    return;
+  }
+
+  let responseData = await response.text(); // Assuming the API returns a string
+  console.log(responseData);
+
+  const socket = new WebSocket(`ws://localhost:8080/websocket?room=${responseData}`);
+
+  socket.onopen = function(event) {
+    console.log("WebSocket connection established.");
+    // Request maze data once connection is established
+    if (socket.readyState === WebSocket.OPEN) {
+      sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL"});
+    }
+  };
+
+  socket.onmessage = function(event) {
+    const messageData = JSON.parse(event.data);
+    if(messageData.hasOwnProperty("wallH")){
+      data = messageData;
+      // Initialize player after receiving maze data
+      initializeGame();
+    }
+    if(messageData == "UPDATE_MAZE_LEVEL"){
+      sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL"});
+    }
+    console.log("Received message:", messageData);
+  };
+
+
+  socket.onerror = function(error) {
+    console.error("WebSocket error: ", error);
+  };
+
+  socket.onclose = function(event) {
+    console.log("WebSocket connection closed:", event);
+  };
+  return socket;
+}
+
+function initializeGame() {
+  if (!gameInitialized && data) {
+    player = new Player(canvas.getContext("2d")!, {x: data.startX, y: data.startY}, 19, 6);
+    gameInitialized = true;
+    window.requestAnimationFrame(gameLoop);
+    console.log("Game initialized with player at: ", data.startX, data.startY);
+  }
 }
 
 function drawMaze(data: MazeResponse) {
+  if (!data) return;
   const { width, height, wallH, wallV, startX, startY, endX, endY } = data;
 
   if (canvas.getContext) {
@@ -125,7 +169,6 @@ function drawMaze(data: MazeResponse) {
   }
 }
 
-window.onload = startRunner;
 
 let data: MazeResponse;
 let secondsPassed = 0,
@@ -133,20 +176,22 @@ let secondsPassed = 0,
   fps: number;
 let canvas: HTMLCanvasElement;
 let player: Player
+let socket: WebSocket | undefined;
 const s = 25; // cell size
+let gameInitialized = false;
 
+window.onload = startRunner;
 
 async function startRunner() {
   canvas = <HTMLCanvasElement>document.getElementById("canvas");
-  accountForDPI(canvas)
-  data = await fetchMaze(15);
-  player = new Player(canvas.getContext("2d")!, {x:data.startX, y:data.startY}, 19, 6);
-  window.requestAnimationFrame(gameLoop);
-  console.log(findNextPath(data, { x: data.startX, y: data.startY }));
+  accountForDPI(canvas);
+  socket = await createRoom();
+  console.log(socket);
 }
 
 function gameLoop(timeStamp: number): void {
   // player.update(secondsPassed)
+  if (!data || !player) return;
   player.context.clearRect(0, 0, canvas.width, canvas.height)
   drawMaze(data);
   player.draw()
@@ -194,14 +239,14 @@ function findNextPath(
   curr: Coordinate,
   prev = { x: -1, y: -1 }
 ): Array<Coordinate> {
-  const path = new Array();
+  const path = [];
   while (true) {
     const currCellExits = fetchExitInfo(maze, curr);
     const filteredExits= removeItem(currCellExits, prev, isEqualCoordinates);
-    if (currCellExits.length != 1) {
+    if (filteredExits.length != 1) {
       break;
     }
-    for (let cell of currCellExits) {
+    for (let cell of filteredExits) {
       prev = curr;
       curr = cell;
       path.push(curr);
@@ -299,16 +344,18 @@ class Player
     }
     const next = {x: curr.x + dx, y: curr.y + dy};
     if (exits.find(e => e.x == next.x && e.y == next.y)) {
-      this.moveTo(next)
-      const path = findNextPath(data, next, curr);
-      if(path.length == 0){
-        return
-      }
-      for(let pos of path){
-        this.moveTo(pos);
-      }
+      this.moveTo(next);
+      socket?.send(JSON.stringify({from:curr, to:next}));
+    //   const path = findNextPath(data, next, curr);
+    //   if(path.length == 0){
+    //     return
+    //   }
+    //   for(let pos of path){
+    //     this.moveTo(pos);
+    //   }
     }
-    
+
+
   }
   moveTo(next: Coordinate) {
     this.position = next;
@@ -322,3 +369,11 @@ class Player
   //     console.log("NEW x, y: ", this.x + " ", this.y)
   // }
 }
+
+  function sendMessage(message : any) {
+      if (socket?.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(message));
+      } else {
+          console.error("WebSocket connection is not open. but why ? ");
+      }
+  }
