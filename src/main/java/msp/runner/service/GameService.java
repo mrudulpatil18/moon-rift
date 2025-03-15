@@ -5,10 +5,7 @@ import lombok.NoArgsConstructor;
 import msp.runner.dtos.MazeDTO;
 import msp.runner.generators.HuntAndKillGenerator;
 import msp.runner.generators.MazeGenerator;
-import msp.runner.model.Game;
-import msp.runner.model.Maze;
-import msp.runner.model.PlayerMove;
-import msp.runner.model.ServerMessage;
+import msp.runner.model.*;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -36,18 +33,29 @@ public class GameService {
     }
 
     public MazeDTO generateNewLevel(String roomId) {
-        int dimension = activeGames.get(roomId).getPlayer1State().getLevel() + 1;
-        Maze maze =  mazeGenerator.generateMaze(dimension, dimension);
-        activeGames.get(roomId).getPlayer1State().setLevel(dimension);
+        GameState player1State = activeGames.get(roomId).getPlayer1State();
+        int dimension = player1State.getLevel() + 1;
+        Coordinate startCoordinate = null;
+        if(player1State.getLastPosition() != null){
+            startCoordinate = player1State .getLastPosition();
+        }
+        Maze maze =  mazeGenerator.generateMaze(dimension, dimension, startCoordinate);
+        player1State.setLevel(dimension);
         maze.printMaze();
-        activeGames.get(roomId).getPlayer1State().setMaze(maze);
+        player1State.setMaze(maze);
         return new MazeDTO(maze);
     }
 
     public MazeDTO generateSameLevel(String roomId) {
+        GameState player1State = activeGames.get(roomId).getPlayer1State();
         int dimension = activeGames.get(roomId).getPlayer1State().getLevel() ;
-        Maze maze =  mazeGenerator.generateMaze(dimension, dimension);
+        Coordinate startCoordinate = null;
+        if(player1State.getLastPosition() != null){
+            startCoordinate = player1State .getLastPosition();
+        }
+        Maze maze =  mazeGenerator.generateMaze(dimension, dimension, startCoordinate);
         maze.printMaze();
+        player1State.setMaze(maze);
         return new MazeDTO(maze);
     }
 }

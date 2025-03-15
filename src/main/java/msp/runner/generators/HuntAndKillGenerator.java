@@ -14,13 +14,16 @@ import msp.runner.model.Maze;
 @NoArgsConstructor
 public class HuntAndKillGenerator implements MazeGenerator {
     @Override
-    public Maze generateMaze(int width, int height) {
+    public Maze generateMaze(int width, int height, Coordinate startCoordinate) {
+        Coordinate currentCell = startCoordinate;
         Set<Coordinate> visited = new HashSet<>();
         Set<Coordinate> nonVisited = initializeNonVisited(width, height);
         Maze maze = new Maze(width, height);
-        
+
+        if(startCoordinate == null){
+            currentCell = getRandomCell(width, height);
+        }
         // Start from random cell
-        Coordinate currentCell = getRandomCell(width, height);
         maze.setStart(currentCell);
         visited.add(currentCell);
         nonVisited.remove(currentCell);

@@ -50,7 +50,7 @@ function accountForDPI(canvas:HTMLCanvasElement) {
 }
 
 async function createRoom() {
-  let response = await fetch(`http://localhost:8080/room/create`, {
+  let response = await fetch(`http://${SERVER_URL}:8080/room/create`, {
     method: "POST",
   });
 
@@ -62,7 +62,7 @@ async function createRoom() {
   let responseData = await response.text(); // Assuming the API returns a string
   console.log(responseData);
 
-  const socket = new WebSocket(`ws://localhost:8080/websocket?room=${responseData}`);
+  const socket = new WebSocket(`ws://${SERVER_URL}:8080/websocket?room=${responseData}`);
 
   socket.onopen = function(event) {
     console.log("WebSocket connection established.");
@@ -105,9 +105,10 @@ function initializeGame() {
   }
 }
 
-function drawMaze(data: MazeResponse) {
+function drawMaze(data: MazeResponse, grid:number[][]) {
   if (!data) return;
   const { width, height, wallH, wallV, startX, startY, endX, endY } = data;
+
 
   if (canvas.getContext) {
     const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
@@ -153,7 +154,7 @@ function drawMaze(data: MazeResponse) {
     //   );
     //   ctx.fill();
     // }
-
+    //
     if (endX !== undefined && endY !== undefined) {
       ctx.fillStyle = "red";
       ctx.beginPath();
@@ -166,9 +167,22 @@ function drawMaze(data: MazeResponse) {
       );
       ctx.fill();
     }
+  //   ctx.save()
+    for(let i = 0; i < grid.length; i++){
+      for(let j = 0; j < grid.length; j++){
+        if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1){
+          let pos = map_to_screen({x: i, y: j});
+          drawIsomettricTile(pos, ctx)
+        }
+        if(grid[i][j] == 1){
+          let pos = map_to_screen({x: i, y: j});
+          drawIsomettricTile(pos, ctx)
+          // ctx.fillText(`(${i},${j})`, pos.x - TILE_WIDTH_HALF /2,  pos.y   + TILE_HEIGHT / 2);
+        }
+      }
+    }
   }
 }
-
 
 let data: MazeResponse;
 let secondsPassed = 0,
@@ -179,6 +193,16 @@ let player: Player
 let socket: WebSocket | undefined;
 const s = 25; // cell size
 let gameInitialized = false;
+// const SERVER_URL = `mazerunner-ynnb.onrender.com`
+const SERVER_URL = "localhost"
+
+let img = new Image();
+img.src = './stone_W.png ';
+let img2 = new Image();
+img2.src = './stoneWall_E.png ';
+
+const WIDTH = img.width;
+const HEIGHT = img.height;
 
 window.onload = startRunner;
 
@@ -193,7 +217,8 @@ function gameLoop(timeStamp: number): void {
   // player.update(secondsPassed)
   if (!data || !player) return;
   player.context.clearRect(0, 0, canvas.width, canvas.height)
-  drawMaze(data);
+  const thickGrid = getThickWalledMaze(data)
+  drawMaze(data, thickGrid);
   player.draw()
   showFps(timeStamp);
   window.requestAnimationFrame(gameLoop);
@@ -362,18 +387,88 @@ class Player
     this.updateXY();
   }
 
-
-  // update(secondsPassed: number){
-  //     this.x += this.v * secondsPassed;
-  //     this.y += this.v * secondsPassed;
-  //     console.log("NEW x, y: ", this.x + " ", this.y)
-  // }
 }
 
-  function sendMessage(message : any) {
+function sendMessage(message : any) {
       if (socket?.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify(message));
       } else {
           console.error("WebSocket connection is not open. but why ? ");
       }
-  }
+}
+
+const TILE_WIDTH = 128;
+const TILE_WIDTH_HALF = 64;
+const TILE_HEIGHT = 64;
+const TILE_HEIGHT_HALF = 32;
+
+
+function map_to_screen(map: Coordinate): Coordinate {
+  const SCREEN_OFFSET = canvas.width/4;
+  let screen: Coordinate = {x:0, y:0};
+  screen.x = (map.x - map.y) * TILE_WIDTH_HALF + SCREEN_OFFSET;
+  screen.y = (map.x + map.y) * TILE_HEIGHT_HALF;
+  return screen;
+}
+
+function drawIsomettricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D) {
+  //top
+  let tileLeft = moveFromIsoOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF});
+  let tileRight = moveFromIsoOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF});
+  let tileBottom = moveFromIsoOrigin(isoOrigin, {x: 0, y: TILE_HEIGHT});
+  let cubeBottom = moveFromIsoOrigin(isoOrigin, {x: 0, y: 2 * TILE_HEIGHT});
+  let cubeLeft = moveFromIsoOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF + TILE_HEIGHT_HALF/Math.sin(Math.PI/6)});
+  let cubeRight = moveFromIsoOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF + TILE_HEIGHT_HALF/Math.sin(Math.PI/6)});
+  ctx.fillStyle = "orange";
+  ctx.beginPath();
+  ctx.moveTo(isoOrigin.x, isoOrigin.y);
+  ctx.lineTo(tileLeft.x, tileLeft.y);
+  ctx.lineTo(tileBottom.x, tileBottom.y);
+  ctx.lineTo(tileRight.x, tileRight.y);
+  ctx.fill();
+
+  //left
+  ctx.fillStyle = "darkorange";
+  ctx.beginPath();
+  ctx.lineTo(tileLeft.x, tileLeft.y);
+  ctx.lineTo(cubeLeft.x, cubeLeft.y);
+  ctx.lineTo(cubeBottom.x, cubeBottom.y);
+  ctx.lineTo(tileBottom.x, tileBottom.y);
+  ctx.fill();
+
+
+  //right
+  ctx.fillStyle = "brown";
+  ctx.beginPath();
+  ctx.lineTo(tileRight.x, tileRight.y);
+  ctx.lineTo(cubeRight.x, cubeRight.y);
+  ctx.lineTo(cubeBottom.x, cubeBottom.y);
+  ctx.lineTo(tileBottom.x, tileBottom.y);
+  ctx.fill();
+}
+
+function moveFromIsoOrigin(isoOrigin: Coordinate, cord: Coordinate){
+  return {x: isoOrigin.x + cord.x, y: isoOrigin.y + cord.y};
+}
+
+function getThickWalledMaze(maze : MazeResponse){
+  const { width, height, wallH, wallV, startX, startY, endX, endY } = maze;
+  const dimWidth = 2*width + 1;
+  const dimHeight = 2*height + 1;
+  const grid = Array.from(Array(dimHeight), () => new Array(dimHeight).fill(0));
+  for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        // Draw horizontal walls (when wallH is 1)
+        if (wallH[x][y] == 1) {
+          grid[2*x + 1][2*(y+1)] = 1;
+        }
+        // Draw vertical walls (when wallV is 1)
+        if (wallV[x][y] == 1) {
+          grid[2*(x + 1)][2*y+1] = 1;
+        }
+        grid[2*x][2*y] = 1;
+      }
+    }
+  console.log(grid);
+  return grid;
+}

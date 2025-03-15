@@ -18,7 +18,7 @@ public class MazeController {
     @GetMapping("/maze")
     public MazeDTO getNewMaze(@RequestParam Integer dimension, @RequestParam String roomId) {
         MazeGenerator mazeGenerator = new HuntAndKillGenerator();
-        Maze maze =  mazeGenerator.generateMaze(dimension, dimension);
+        Maze maze =  mazeGenerator.generateMaze(dimension, dimension, null);
         maze.printMaze();
         return new MazeDTO(maze);
     }
