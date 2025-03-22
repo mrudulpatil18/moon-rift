@@ -235,15 +235,20 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
     }
 
     updateTileSizes(50);
-
+    // draw maze
     for(let i = 0; i < grid.length; i++){
       for(let j = 0; j < grid.length; j++){
         let pos = map_to_screen({x: i, y: j});
         drawIsometricTile(pos, ctx, false, camera)
+        if(i == 2* (endX) + 1 && j == 2* (endY) + 1){
+          console.log("YES")
+          drawEndOnIsometricMaze(pos, ctx, camera);
+          continue;
+        }
+
         if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1 || grid[i][j] == 1){
           drawIsometricTile(pos, ctx, true, camera)
         }
-
       }
     }
   }
@@ -392,8 +397,6 @@ function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D,
   ctx.fillStyle = isBlock ? "#fba52d" : "#232121";
   ctx.fill();
 
-  if(true){
-
     //left
     ctx.beginPath();
     ctx.lineTo(tileLeft.x, tileLeft.y);
@@ -414,8 +417,55 @@ function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D,
     ctx.closePath();
     ctx.fillStyle = "#ed8b1c";
     ctx.fill();
-  }
 
+}
+
+function drawEndOnIsometricMaze(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D, camera: Camera) {
+  const wobble = (Math.sin(Date.now() / 250) + 1) * 5; // Adjust amplitude as needed
+  isoOrigin = { ...isoOrigin, y: isoOrigin.y - wobble - TILE_HEIGHT_HALF * 1.7 };
+
+  const blockHeight = TILE_HEIGHT;
+
+  // Apply camera transformation
+  isoOrigin = applyCamera(isoOrigin, camera);
+
+  // Calculate cube points
+  const tileLeft = moveFromOrigin(isoOrigin, { x: -TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF });
+  const tileRight = moveFromOrigin(isoOrigin, { x: TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF });
+  const tileBottom = moveFromOrigin(isoOrigin, { x: 0, y: TILE_HEIGHT });
+  const cubeBottom = moveFromOrigin(isoOrigin, { x: 0, y: TILE_HEIGHT + blockHeight });
+  const cubeLeft = moveFromOrigin(isoOrigin, { x: -TILE_WIDTH_HALF, y: TILE_HEIGHT + blockHeight - TILE_WIDTH_HALF / 2 });
+  const cubeRight = moveFromOrigin(isoOrigin, { x: TILE_WIDTH_HALF, y: TILE_HEIGHT + blockHeight - TILE_WIDTH_HALF / 2 });
+
+  // Draw top face with animation
+  ctx.beginPath();
+  ctx.moveTo(isoOrigin.x, isoOrigin.y);
+  ctx.lineTo(tileLeft.x, tileLeft.y);
+  ctx.lineTo(tileBottom.x, tileBottom.y);
+  ctx.lineTo(tileRight.x, tileRight.y);
+  ctx.closePath();
+  ctx.fillStyle = '#ff5933cc'; // Top color with transparency
+  ctx.fill();
+
+  // Draw left face
+  ctx.beginPath();
+  ctx.moveTo(tileLeft.x, tileLeft.y);
+  ctx.lineTo(cubeLeft.x, cubeLeft.y);
+  ctx.lineTo(cubeBottom.x, cubeBottom.y);
+  ctx.lineTo(tileBottom.x, tileBottom.y);
+  ctx.closePath();
+  ctx.fillStyle = '#e60d00cc'; // Left color with transparency
+  ctx.fill();
+
+  // Draw right face
+  ctx.beginPath();
+  ctx.moveTo(tileRight.x, tileRight.y);
+  ctx.lineTo(cubeRight.x, cubeRight.y);
+  ctx.lineTo(cubeBottom.x, cubeBottom.y);
+  ctx.lineTo(tileBottom.x, tileBottom.y);
+  ctx.closePath();
+  ctx.fillStyle = '#ff401acc'; // Right color with transparency
+  ctx.fill();
 }
 
 function moveFromOrigin(isoOrigin: Coordinate, cord: Coordinate){
