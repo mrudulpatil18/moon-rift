@@ -168,16 +168,17 @@ function drawMaze(data: MazeResponse, grid:number[][]) {
       ctx.fill();
     }
 
-    updateTileSizes(data.width * 5);
+    updateTileSizes(40);
 
     for(let i = 0; i < grid.length; i++){
       for(let j = 0; j < grid.length; j++){
         let pos = map_to_screen({x: i, y: j});
+        drawIsometricTile(pos, ctx, false)
         if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1){
-          drawIsometricTile(pos, ctx)
+          drawIsometricTile(pos, ctx, true)
         }
         if(grid[i][j] == 1){
-          drawIsometricTile(pos, ctx)
+          drawIsometricTile(pos, ctx, true)
           // ctx.fillText(`(${i},${j})`, pos.x - TILE_WIDTH_HALF /2,  pos.y   + TILE_HEIGHT / 2);
         }
       }
@@ -423,7 +424,7 @@ let TILE_HEIGHT_HALF = 16;
 
 function map_to_screen(map: Coordinate): Coordinate {
   const SCREEN_OFFSET = canvas.width/4;
-  const SCREEN_VERTICAL_OFFSET = 0;
+  const SCREEN_VERTICAL_OFFSET = TILE_HEIGHT * 2;
   let screen: Coordinate = {x:0, y:0};
   screen.x = (map.x - map.y) * TILE_WIDTH_HALF + SCREEN_OFFSET;
   screen.y = (map.x + map.y) * TILE_HEIGHT_HALF+ SCREEN_VERTICAL_OFFSET;
@@ -431,49 +432,49 @@ function map_to_screen(map: Coordinate): Coordinate {
 }
 
 
-function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D) {
+function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D, isBlock = false) {
+  let blockHeight = isBlock ? TILE_HEIGHT_HALF * 1.7: TILE_HEIGHT_HALF * 0.3;
+  isoOrigin = isBlock ? moveFromIsoOrigin(isoOrigin, {x: 0, y: -1 * blockHeight}) :  isoOrigin;
   //top
   let tileLeft = moveFromIsoOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF});
   let tileRight = moveFromIsoOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF});
   let tileBottom = moveFromIsoOrigin(isoOrigin, {x: 0, y: TILE_HEIGHT});
-  let cubeBottom = moveFromIsoOrigin(isoOrigin, {x: 0, y: 2 * TILE_HEIGHT});
-  let cubeLeft = moveFromIsoOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: 2* TILE_HEIGHT - TILE_WIDTH_HALF/2});
-  let cubeRight = moveFromIsoOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: 2* TILE_HEIGHT - TILE_WIDTH_HALF/2});
+  let cubeBottom = moveFromIsoOrigin(isoOrigin, {x: 0, y: TILE_HEIGHT + blockHeight});
+  let cubeLeft = moveFromIsoOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT + blockHeight - TILE_WIDTH_HALF/2});
+  let cubeRight = moveFromIsoOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT + blockHeight - TILE_WIDTH_HALF/2});
   ctx.beginPath();
   ctx.moveTo(isoOrigin.x, isoOrigin.y);
   ctx.lineTo(tileLeft.x, tileLeft.y);
   ctx.lineTo(tileBottom.x, tileBottom.y);
   ctx.lineTo(tileRight.x, tileRight.y);
   ctx.closePath();
-  ctx.fillStyle = "#FFFFFF";
-  ctx.strokeStyle = "#FFFFFF";
-  // ctx.stroke();
+  ctx.fillStyle = isBlock ? "#fba52d" : "#232121";
   ctx.fill();
 
-  //left
-  ctx.beginPath();
-  ctx.lineTo(tileLeft.x, tileLeft.y);
-  ctx.lineTo(cubeLeft.x, cubeLeft.y);
-  ctx.lineTo(cubeBottom.x, cubeBottom.y);
-  ctx.lineTo(tileBottom.x, tileBottom.y);
-  ctx.closePath();
-  ctx.fillStyle = "#282c34";
-  ctx.strokeStyle = "#282c34";
-  // ctx.stroke();
-  ctx.fill();
+  if(true){
+
+    //left
+    ctx.beginPath();
+    ctx.lineTo(tileLeft.x, tileLeft.y);
+    ctx.lineTo(cubeLeft.x, cubeLeft.y);
+    ctx.lineTo(cubeBottom.x, cubeBottom.y);
+    ctx.lineTo(tileBottom.x, tileBottom.y);
+    ctx.closePath();
+    ctx.fillStyle = "#aa5b0a";
+    ctx.fill();
 
 
-  //right
-  ctx.beginPath();
-  ctx.lineTo(tileRight.x, tileRight.y);
-  ctx.lineTo(cubeRight.x, cubeRight.y);
-  ctx.lineTo(cubeBottom.x, cubeBottom.y);
-  ctx.lineTo(tileBottom.x, tileBottom.y);
-  ctx.closePath();
-  ctx.fillStyle = "#000000";
-  ctx.strokeStyle = "#000000";
-  // ctx.stroke();
-  ctx.fill();
+    //right
+    ctx.beginPath();
+    ctx.lineTo(tileRight.x, tileRight.y);
+    ctx.lineTo(cubeRight.x, cubeRight.y);
+    ctx.lineTo(cubeBottom.x, cubeBottom.y);
+    ctx.lineTo(tileBottom.x, tileBottom.y);
+    ctx.closePath();
+    ctx.fillStyle = "#ed8b1c";
+    ctx.fill();
+  }
+
 }
 
 function moveFromIsoOrigin(isoOrigin: Coordinate, cord: Coordinate){
@@ -484,7 +485,7 @@ function getThickWalledMaze(maze : MazeResponse){
   const { width, height, wallH, wallV, startX, startY, endX, endY } = maze;
   const dimWidth = 2*width + 1;
   const dimHeight = 2*height + 1;
-  const grid = Array.from(Array(dimHeight), () => new Array(dimHeight).fill(0));
+  const grid = Array.from(Array(dimHeight), () => new Array(dimWidth).fill(0));
   for (let x = 0; x < width; x++) {
       for (let y = 0; y < height; y++) {
         // Draw horizontal walls (when wallH is 1)
