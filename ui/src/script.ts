@@ -116,13 +116,13 @@ function drawMaze(data: MazeResponse, grid:number[][]) {
     // Clear previous drawings
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    ctx.strokeStyle = Math.random() > 0.5 ? "white" : "white";
     // Draw outer border
     ctx.beginPath();
     ctx.rect(s, s, s * width, s * height);
     ctx.stroke();
 
     // Draw walls
-    ctx.strokeStyle = Math.random() > 0.5 ? "black" : "black";
     ctx.beginPath();
     for (let x = 0; x < width; x++) {
       for (let y = 0; y < height; y++) {
@@ -167,16 +167,17 @@ function drawMaze(data: MazeResponse, grid:number[][]) {
       );
       ctx.fill();
     }
-  //   ctx.save()
+
+    updateTileSizes(data.width * 5);
+
     for(let i = 0; i < grid.length; i++){
       for(let j = 0; j < grid.length; j++){
+        let pos = map_to_screen({x: i, y: j});
         if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1){
-          let pos = map_to_screen({x: i, y: j});
-          drawIsomettricTile(pos, ctx)
+          drawIsometricTile(pos, ctx)
         }
         if(grid[i][j] == 1){
-          let pos = map_to_screen({x: i, y: j});
-          drawIsomettricTile(pos, ctx)
+          drawIsometricTile(pos, ctx)
           // ctx.fillText(`(${i},${j})`, pos.x - TILE_WIDTH_HALF /2,  pos.y   + TILE_HEIGHT / 2);
         }
       }
@@ -208,6 +209,16 @@ window.onload = startRunner;
 
 async function startRunner() {
   canvas = <HTMLCanvasElement>document.getElementById("canvas");
+  const ctx = canvas.getContext('2d');
+  window.addEventListener('resize', function() {
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    canvas.width = window.innerWidth * window.devicePixelRatio;
+    canvas.height = window.innerHeight * window.devicePixelRatio;
+    ctx?.scale(window.devicePixelRatio, window.devicePixelRatio);
+  });
+
+
   accountForDPI(canvas);
   socket = await createRoom();
   console.log(socket);
@@ -231,7 +242,7 @@ function showFps(timeStamp: number): void {
   oldTimestamp = timeStamp;
   fps = 1 / secondsPassed;
   const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
-  ctx.fillStyle = "black";
+  ctx.fillStyle = "gray";
   ctx.font = "20px serif";
   ctx.fillText("FPS: " + fps.toFixed(0), 200, 20);
 }
@@ -397,53 +408,71 @@ function sendMessage(message : any) {
       }
 }
 
-const TILE_WIDTH = 128;
-const TILE_WIDTH_HALF = 64;
-const TILE_HEIGHT = 64;
-const TILE_HEIGHT_HALF = 32;
+function updateTileSizes(num:number){
+  TILE_WIDTH = canvas.width/num;
+  TILE_WIDTH_HALF = TILE_WIDTH/2;
+  TILE_HEIGHT = TILE_WIDTH / 2;
+  TILE_HEIGHT_HALF = TILE_HEIGHT / 2;
+}
+
+let TILE_WIDTH = 64;
+let TILE_WIDTH_HALF = 32;
+let TILE_HEIGHT = 32;
+let TILE_HEIGHT_HALF = 16;
 
 
 function map_to_screen(map: Coordinate): Coordinate {
   const SCREEN_OFFSET = canvas.width/4;
+  const SCREEN_VERTICAL_OFFSET = 0;
   let screen: Coordinate = {x:0, y:0};
   screen.x = (map.x - map.y) * TILE_WIDTH_HALF + SCREEN_OFFSET;
-  screen.y = (map.x + map.y) * TILE_HEIGHT_HALF;
+  screen.y = (map.x + map.y) * TILE_HEIGHT_HALF+ SCREEN_VERTICAL_OFFSET;
   return screen;
 }
 
-function drawIsomettricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D) {
+
+function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D) {
   //top
   let tileLeft = moveFromIsoOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF});
   let tileRight = moveFromIsoOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF});
   let tileBottom = moveFromIsoOrigin(isoOrigin, {x: 0, y: TILE_HEIGHT});
   let cubeBottom = moveFromIsoOrigin(isoOrigin, {x: 0, y: 2 * TILE_HEIGHT});
-  let cubeLeft = moveFromIsoOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF + TILE_HEIGHT_HALF/Math.sin(Math.PI/6)});
-  let cubeRight = moveFromIsoOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF + TILE_HEIGHT_HALF/Math.sin(Math.PI/6)});
-  ctx.fillStyle = "orange";
+  let cubeLeft = moveFromIsoOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: 2* TILE_HEIGHT - TILE_WIDTH_HALF/2});
+  let cubeRight = moveFromIsoOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: 2* TILE_HEIGHT - TILE_WIDTH_HALF/2});
   ctx.beginPath();
   ctx.moveTo(isoOrigin.x, isoOrigin.y);
   ctx.lineTo(tileLeft.x, tileLeft.y);
   ctx.lineTo(tileBottom.x, tileBottom.y);
   ctx.lineTo(tileRight.x, tileRight.y);
+  ctx.closePath();
+  ctx.fillStyle = "#FFFFFF";
+  ctx.strokeStyle = "#FFFFFF";
+  // ctx.stroke();
   ctx.fill();
 
   //left
-  ctx.fillStyle = "darkorange";
   ctx.beginPath();
   ctx.lineTo(tileLeft.x, tileLeft.y);
   ctx.lineTo(cubeLeft.x, cubeLeft.y);
   ctx.lineTo(cubeBottom.x, cubeBottom.y);
   ctx.lineTo(tileBottom.x, tileBottom.y);
+  ctx.closePath();
+  ctx.fillStyle = "#282c34";
+  ctx.strokeStyle = "#282c34";
+  // ctx.stroke();
   ctx.fill();
 
 
   //right
-  ctx.fillStyle = "brown";
   ctx.beginPath();
   ctx.lineTo(tileRight.x, tileRight.y);
   ctx.lineTo(cubeRight.x, cubeRight.y);
   ctx.lineTo(cubeBottom.x, cubeBottom.y);
   ctx.lineTo(tileBottom.x, tileBottom.y);
+  ctx.closePath();
+  ctx.fillStyle = "#000000";
+  ctx.strokeStyle = "#000000";
+  // ctx.stroke();
   ctx.fill();
 }
 
