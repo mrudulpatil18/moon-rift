@@ -129,9 +129,12 @@ async function createRoom() {
       initializeGame();
     }
     if(messageData == "UPDATE_MAZE_LEVEL"){
-      sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL"});
+      setTimeout(function() {
+        sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL"});
+        console.log("Received message:", messageData);
+      }, 2000);
     }
-    console.log("Received message:", messageData);
+
   };
 
 
@@ -147,8 +150,8 @@ async function createRoom() {
 
 function initializeGame() {
   if (!gameInitialized && data) {
-    player = new Player(canvas.getContext("2d")!, {x: data.startX, y: data.startY}, 19, 6);
     camera = new Camera(canvas.getContext("2d")!);
+    player = new Player(canvas.getContext("2d")!, {x: data.startX, y: data.startY}, 19, 6);
     gameInitialized = true;
     window.requestAnimationFrame(gameLoop);
     console.log("Game initialized with player at: ", data.startX, data.startY);
@@ -163,8 +166,6 @@ function gameLoop(timeStamp: number): void {
 
   const thickGrid = getThickWalledMaze(data)
   drawMaze(data, thickGrid, camera);
-  player.draw()
-
   camera.resetTransform();
 
   showFps(timeStamp);
@@ -240,14 +241,18 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
       for(let j = 0; j < grid.length; j++){
         let pos = map_to_screen({x: i, y: j});
         drawIsometricTile(pos, ctx, false, camera)
-        if(i == 2* (endX) + 1 && j == 2* (endY) + 1){
-          console.log("YES")
-          drawEndOnIsometricMaze(pos, ctx, camera);
+        if(i == 2* (endX) + 1 && j == 2* (endY) + 1 && !isEqualCoordinates(player.position, {x:endX, y:endY})){
+
+          drawImpOnIsometricMaze(pos, ctx, camera);
           continue;
         }
 
         if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1 || grid[i][j] == 1){
           drawIsometricTile(pos, ctx, true, camera)
+        }
+
+        if(isEqualCoordinates(player.position, {x:(i-1)/2, y: (j-1)/2})){
+          player.draw()
         }
       }
     }
@@ -420,11 +425,11 @@ function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D,
 
 }
 
-function drawEndOnIsometricMaze(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D, camera: Camera) {
-  const wobble = (Math.sin(Date.now() / 250) + 1) * 5; // Adjust amplitude as needed
-  isoOrigin = { ...isoOrigin, y: isoOrigin.y - wobble - TILE_HEIGHT_HALF * 1.7 };
+function drawImpOnIsometricMaze(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D, camera: Camera, isStart=false) {
+  const wobble = (Math.sin(Date.now() / 250) + 1) * (isStart ? 0: 5); // Adjust amplitude as needed
+  isoOrigin = { ...isoOrigin, y: isoOrigin.y - wobble - (isStart ? TILE_HEIGHT : TILE_HEIGHT_HALF * 1.7) };
 
-  const blockHeight = TILE_HEIGHT;
+  const blockHeight =  TILE_HEIGHT;
 
   // Apply camera transformation
   isoOrigin = applyCamera(isoOrigin, camera);
@@ -444,7 +449,7 @@ function drawEndOnIsometricMaze(isoOrigin: Coordinate, ctx: CanvasRenderingConte
   ctx.lineTo(tileBottom.x, tileBottom.y);
   ctx.lineTo(tileRight.x, tileRight.y);
   ctx.closePath();
-  ctx.fillStyle = '#ff5933cc'; // Top color with transparency
+  ctx.fillStyle = isStart ? "#33ff33aa" : '#ff5933cc'; // Top color with transparency
   ctx.fill();
 
   // Draw left face
@@ -454,7 +459,7 @@ function drawEndOnIsometricMaze(isoOrigin: Coordinate, ctx: CanvasRenderingConte
   ctx.lineTo(cubeBottom.x, cubeBottom.y);
   ctx.lineTo(tileBottom.x, tileBottom.y);
   ctx.closePath();
-  ctx.fillStyle = '#e60d00cc'; // Left color with transparency
+  ctx.fillStyle =isStart ? "#00e000aa" :  '#e60d00cc'; // Left color with transparency
   ctx.fill();
 
   // Draw right face
@@ -464,7 +469,7 @@ function drawEndOnIsometricMaze(isoOrigin: Coordinate, ctx: CanvasRenderingConte
   ctx.lineTo(cubeBottom.x, cubeBottom.y);
   ctx.lineTo(tileBottom.x, tileBottom.y);
   ctx.closePath();
-  ctx.fillStyle = '#ff401acc'; // Right color with transparency
+  ctx.fillStyle = isStart ? "#1aff1aaa" : '#ff401acc'; // Right color with transparency
   ctx.fill();
 }
 
@@ -520,6 +525,7 @@ class Player {
         2 * Math.PI
     );
     this.context.fill();
+    drawImpOnIsometricMaze(map_to_screen({x: 2* this.position.x+1, y: 2 * this.position.y+1}), this.context, camera, true);
   }
 
   updateXY():void{
@@ -528,6 +534,9 @@ class Player {
   }
 
   makeMove(direction: Direction){
+    if(isEqualCoordinates(this.position, {x: data.endX, y: data.endY})){
+      return;
+    }
     const curr = this.position;
     const exits = fetchExitInfo(data, curr);
     let dx =0, dy = 0;
@@ -563,7 +572,6 @@ class Player {
     this.position = next;
     this.updateXY();
   }
-
 }
 
 class Camera{
