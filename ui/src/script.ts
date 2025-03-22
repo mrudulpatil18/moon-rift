@@ -1,6 +1,55 @@
 ("use strict");
 
+
+let data: MazeResponse;
+let secondsPassed = 0,
+    oldTimestamp = 0,
+    fps: number;
+let canvas: HTMLCanvasElement;
+let player: Player
+let camera: Camera;
+let socket: WebSocket | undefined;
+const s = 25; // cell size
+let gameInitialized = false;
+// const SERVER_URL = `mazerunner-ynnb.onrender.com`
+const SERVER_URL = "localhost"
+
+let TILE_WIDTH = 64;
+let TILE_WIDTH_HALF = 32;
+let TILE_HEIGHT = 32;
+let TILE_HEIGHT_HALF = 16;
+
+let isDown = false;
+let mousePosStartX: number, mousePosStartY: number;
+let mousePosEndX: number, mousePosEndY: number;
+let SCREEN_X_OFFSET, SCREEN_Y_OFFSET;
+
+window.addEventListener('mousedown', mousedown)
+window.addEventListener('mousemove', mousemove)
+window.addEventListener('mouseup', mouseup)
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('wheel', mousewheel);
+
 window.addEventListener("keydown", moveSomething, false);
+window.onload = startRunner;
+
+async function startRunner() {
+  canvas = <HTMLCanvasElement>document.getElementById("canvas");
+
+
+  accountForDPI(canvas);
+  socket = await createRoom();
+  console.log(socket);
+}
+
+function resizeCanvas() {
+  const ctx = canvas.getContext('2d');
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  canvas.width = window.innerWidth * window.devicePixelRatio;
+  canvas.height = window.innerHeight * window.devicePixelRatio;
+  ctx?.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
 
 function moveSomething(e: { keyCode: any; }) {
   if(player == null){
@@ -99,13 +148,30 @@ async function createRoom() {
 function initializeGame() {
   if (!gameInitialized && data) {
     player = new Player(canvas.getContext("2d")!, {x: data.startX, y: data.startY}, 19, 6);
+    camera = new Camera(canvas.getContext("2d")!);
     gameInitialized = true;
     window.requestAnimationFrame(gameLoop);
     console.log("Game initialized with player at: ", data.startX, data.startY);
   }
 }
 
-function drawMaze(data: MazeResponse, grid:number[][]) {
+function gameLoop(timeStamp: number): void {
+  if (!data || !player) return;
+
+  player.context.clearRect(0, 0, canvas.width, canvas.height)
+  camera.applyTransform();
+
+  const thickGrid = getThickWalledMaze(data)
+  drawMaze(data, thickGrid, camera);
+  player.draw()
+
+  camera.resetTransform();
+
+  showFps(timeStamp);
+  window.requestAnimationFrame(gameLoop);
+}
+
+function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
   if (!data) return;
   const { width, height, wallH, wallV, startX, startY, endX, endY } = data;
 
@@ -168,74 +234,20 @@ function drawMaze(data: MazeResponse, grid:number[][]) {
       ctx.fill();
     }
 
-    updateTileSizes(40);
+    updateTileSizes(50);
 
     for(let i = 0; i < grid.length; i++){
       for(let j = 0; j < grid.length; j++){
         let pos = map_to_screen({x: i, y: j});
-        drawIsometricTile(pos, ctx, false)
-        if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1){
-          drawIsometricTile(pos, ctx, true)
+        drawIsometricTile(pos, ctx, false, camera)
+        if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1 || grid[i][j] == 1){
+          drawIsometricTile(pos, ctx, true, camera)
         }
-        if(grid[i][j] == 1){
-          drawIsometricTile(pos, ctx, true)
-          // ctx.fillText(`(${i},${j})`, pos.x - TILE_WIDTH_HALF /2,  pos.y   + TILE_HEIGHT / 2);
-        }
+
       }
     }
   }
 }
-
-let data: MazeResponse;
-let secondsPassed = 0,
-  oldTimestamp = 0,
-  fps: number;
-let canvas: HTMLCanvasElement;
-let player: Player
-let socket: WebSocket | undefined;
-const s = 25; // cell size
-let gameInitialized = false;
-// const SERVER_URL = `mazerunner-ynnb.onrender.com`
-const SERVER_URL = "localhost"
-
-let img = new Image();
-img.src = './stone_W.png ';
-let img2 = new Image();
-img2.src = './stoneWall_E.png ';
-
-const WIDTH = img.width;
-const HEIGHT = img.height;
-
-window.onload = startRunner;
-
-async function startRunner() {
-  canvas = <HTMLCanvasElement>document.getElementById("canvas");
-  const ctx = canvas.getContext('2d');
-  window.addEventListener('resize', function() {
-    canvas.style.width = window.innerWidth + 'px';
-    canvas.style.height = window.innerHeight + 'px';
-    canvas.width = window.innerWidth * window.devicePixelRatio;
-    canvas.height = window.innerHeight * window.devicePixelRatio;
-    ctx?.scale(window.devicePixelRatio, window.devicePixelRatio);
-  });
-
-
-  accountForDPI(canvas);
-  socket = await createRoom();
-  console.log(socket);
-}
-
-function gameLoop(timeStamp: number): void {
-  // player.update(secondsPassed)
-  if (!data || !player) return;
-  player.context.clearRect(0, 0, canvas.width, canvas.height)
-  const thickGrid = getThickWalledMaze(data)
-  drawMaze(data, thickGrid);
-  player.draw()
-  showFps(timeStamp);
-  window.requestAnimationFrame(gameLoop);
-}
-
 
 //show fps
 function showFps(timeStamp: number): void {
@@ -271,11 +283,7 @@ type Coordinate = {
   y: number;
 };
 
-function findNextPath(
-  maze: MazeResponse,
-  curr: Coordinate,
-  prev = { x: -1, y: -1 }
-): Array<Coordinate> {
+function findNextPath( maze: MazeResponse, curr: Coordinate, prev = { x: -1, y: -1 }): Array<Coordinate> {
   const path = [];
   while (true) {
     const currCellExits = fetchExitInfo(maze, curr);
@@ -292,10 +300,7 @@ function findNextPath(
   return path;
 }
 
-function fetchExitInfo(
-  maze: MazeResponse,
-  curr: Coordinate
-): Array<Coordinate> {
+function fetchExitInfo(maze: MazeResponse, curr: Coordinate): Array<Coordinate> {
   const { wallH, wallV } = maze;
   const currX = curr.x;
   const currY = curr.y;
@@ -327,80 +332,6 @@ function isEqualCoordinates(a: Coordinate, b: Coordinate): boolean{
   return a.x == b.x && a.y == b.y;
 }
 
-class Player
-{
-    context: CanvasRenderingContext2D;
-    position: Coordinate;
-    x!: number;
-    y!: number;
-    v: number;
-    radius: any;
-    constructor (context: CanvasRenderingContext2D, position: Coordinate, v: number, radius:number){
-        this.context = context;
-        this.position = position;
-        this.v = v;
-        this.radius = radius;
-        this.updateXY()
-    }
-
-    draw(){
-      this.context.fillStyle = "green";
-      this.context.beginPath();
-      this.context.arc(
-        this.x,
-        this.y,
-        this.radius,
-        0,
-        2 * Math.PI
-      );
-      this.context.fill();
-  }
-
-  updateXY():void{
-    this.x = s + this.position.x * s + s / 2;
-    this.y = s + this.position.y * s + s / 2;
-  }
-
-  makeMove(direction: Direction){
-    const curr = this.position;
-    const exits = fetchExitInfo(data, curr);
-    let dx =0, dy = 0;
-    switch (direction){
-      case Direction.Down:
-        dy = 1
-        break
-      case Direction.Up:
-        dy = -1
-        break
-      case Direction.Left:
-        dx = -1
-        break
-      case Direction.Right:
-        dx = 1
-        break
-    }
-    const next = {x: curr.x + dx, y: curr.y + dy};
-    if (exits.find(e => e.x == next.x && e.y == next.y)) {
-      this.moveTo(next);
-      socket?.send(JSON.stringify({from:curr, to:next}));
-    //   const path = findNextPath(data, next, curr);
-    //   if(path.length == 0){
-    //     return
-    //   }
-    //   for(let pos of path){
-    //     this.moveTo(pos);
-    //   }
-    }
-
-
-  }
-  moveTo(next: Coordinate) {
-    this.position = next;
-    this.updateXY();
-  }
-
-}
-
 function sendMessage(message : any) {
       if (socket?.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify(message));
@@ -416,32 +347,42 @@ function updateTileSizes(num:number){
   TILE_HEIGHT_HALF = TILE_HEIGHT / 2;
 }
 
-let TILE_WIDTH = 64;
-let TILE_WIDTH_HALF = 32;
-let TILE_HEIGHT = 32;
-let TILE_HEIGHT_HALF = 16;
-
-
 function map_to_screen(map: Coordinate): Coordinate {
-  const SCREEN_OFFSET = canvas.width/4;
-  const SCREEN_VERTICAL_OFFSET = TILE_HEIGHT * 2;
+  SCREEN_X_OFFSET = canvas.width/4;
+  SCREEN_Y_OFFSET = TILE_HEIGHT;
+
   let screen: Coordinate = {x:0, y:0};
-  screen.x = (map.x - map.y) * TILE_WIDTH_HALF + SCREEN_OFFSET;
-  screen.y = (map.x + map.y) * TILE_HEIGHT_HALF+ SCREEN_VERTICAL_OFFSET;
+  screen.x = (map.x - map.y) * TILE_WIDTH_HALF +SCREEN_X_OFFSET ;
+  screen.y = (map.x + map.y) * TILE_HEIGHT_HALF + SCREEN_Y_OFFSET;
   return screen;
 }
 
+function applyCamera(map: Coordinate, camera:Camera) {
+  return{x: map.x - camera.position.x, y: map.y - camera.position.y};
+}
 
-function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D, isBlock = false) {
+function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D, isBlock = false, camera : Camera) {
   let blockHeight = isBlock ? TILE_HEIGHT_HALF * 1.7: TILE_HEIGHT_HALF * 0.3;
-  isoOrigin = isBlock ? moveFromIsoOrigin(isoOrigin, {x: 0, y: -1 * blockHeight}) :  isoOrigin;
+  isoOrigin = isBlock ? moveFromOrigin(isoOrigin, {x: 0, y: -1 * blockHeight}) :  isoOrigin;
+
   //top
-  let tileLeft = moveFromIsoOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF});
-  let tileRight = moveFromIsoOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF});
-  let tileBottom = moveFromIsoOrigin(isoOrigin, {x: 0, y: TILE_HEIGHT});
-  let cubeBottom = moveFromIsoOrigin(isoOrigin, {x: 0, y: TILE_HEIGHT + blockHeight});
-  let cubeLeft = moveFromIsoOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT + blockHeight - TILE_WIDTH_HALF/2});
-  let cubeRight = moveFromIsoOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT + blockHeight - TILE_WIDTH_HALF/2});
+  let tileLeft = moveFromOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF});
+  let tileRight = moveFromOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF});
+  let tileBottom = moveFromOrigin(isoOrigin, {x: 0, y: TILE_HEIGHT});
+  let cubeBottom = moveFromOrigin(isoOrigin, {x: 0, y: TILE_HEIGHT + blockHeight});
+  let cubeLeft = moveFromOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT + blockHeight - TILE_WIDTH_HALF/2});
+  let cubeRight = moveFromOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT + blockHeight - TILE_WIDTH_HALF/2});
+
+  //apply camera effect
+  isoOrigin = applyCamera(isoOrigin, camera);
+  tileRight = applyCamera(tileRight, camera);
+  tileLeft = applyCamera(tileLeft, camera);
+  tileBottom = applyCamera(tileBottom, camera);
+  cubeBottom = applyCamera(cubeBottom, camera);
+  cubeRight = applyCamera(cubeRight, camera);
+  cubeLeft = applyCamera(cubeLeft, camera);
+
+
   ctx.beginPath();
   ctx.moveTo(isoOrigin.x, isoOrigin.y);
   ctx.lineTo(tileLeft.x, tileLeft.y);
@@ -477,7 +418,7 @@ function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D,
 
 }
 
-function moveFromIsoOrigin(isoOrigin: Coordinate, cord: Coordinate){
+function moveFromOrigin(isoOrigin: Coordinate, cord: Coordinate){
   return {x: isoOrigin.x + cord.x, y: isoOrigin.y + cord.y};
 }
 
@@ -499,6 +440,150 @@ function getThickWalledMaze(maze : MazeResponse){
         grid[2*x][2*y] = 1;
       }
     }
-  console.log(grid);
+  // console.log(grid);
   return grid;
+}
+
+class Player {
+  context: CanvasRenderingContext2D;
+  position: Coordinate;
+  x!: number;
+  y!: number;
+  v: number;
+  radius: any;
+  constructor (context: CanvasRenderingContext2D, position: Coordinate, v: number, radius:number){
+    this.context = context;
+    this.position = position;
+    this.v = v;
+    this.radius = radius;
+    this.updateXY()
+  }
+
+  draw(){
+    this.context.fillStyle = "green";
+    this.context.beginPath();
+    this.context.arc(
+        this.x,
+        this.y,
+        this.radius,
+        0,
+        2 * Math.PI
+    );
+    this.context.fill();
+  }
+
+  updateXY():void{
+    this.x = s + this.position.x * s + s / 2;
+    this.y = s + this.position.y * s + s / 2;
+  }
+
+  makeMove(direction: Direction){
+    const curr = this.position;
+    const exits = fetchExitInfo(data, curr);
+    let dx =0, dy = 0;
+    switch (direction){
+      case Direction.Down:
+        dy = 1
+        break
+      case Direction.Up:
+        dy = -1
+        break
+      case Direction.Left:
+        dx = -1
+        break
+      case Direction.Right:
+        dx = 1
+        break
+    }
+    const next = {x: curr.x + dx, y: curr.y + dy};
+    if (exits.find(e => e.x == next.x && e.y == next.y)) {
+      this.moveTo(next);
+      socket?.send(JSON.stringify({from:curr, to:next}));
+      //   const path = findNextPath(data, next, curr);
+      //   if(path.length == 0){
+      //     return
+      //   }
+      //   for(let pos of path){
+      //     this.moveTo(pos);
+      //   }
+    }
+  }
+
+  moveTo(next: Coordinate) {
+    this.position = next;
+    this.updateXY();
+  }
+
+}
+
+class Camera{
+  context: CanvasRenderingContext2D;
+  position: Coordinate;
+  zoom:number;
+  rotate:number;
+
+  constructor(context: CanvasRenderingContext2D) {
+    this.context = context;
+    this.position = {x: 0, y: 0};
+    this.zoom = 1;
+    this.rotate = 0;
+  }
+
+  applyTransform() {
+    this.context.save();
+    this.context.scale(this.zoom, this.zoom);
+  }
+
+  resetTransform() {
+    this.context.restore();
+  }
+}
+
+function mousedown(event: MouseEvent) {
+  if (!isDown) {
+    mousePosStartX = event.pageX ;
+    mousePosStartY = event.pageY ;
+    isDown = true;
+    event.preventDefault();
+  }
+}
+
+function mousemove(event: MouseEvent) {
+  if (isDown) {
+    mousePosEndX = event.pageX;
+    mousePosEndY = event.pageY;
+
+    // Use a smaller factor for smoother camera movement
+    const movementFactor = 3;
+    let changeX = (mousePosStartX - mousePosEndX) * TILE_WIDTH_HALF * data.width / canvas.width * movementFactor;
+    let changeY = (mousePosStartY - mousePosEndY) * TILE_HEIGHT_HALF * data.height / canvas.height * movementFactor;
+
+    camera.position = moveFromOrigin(camera.position, {x: changeX, y: changeY});
+
+    // Update start position for the next move
+    mousePosStartX = mousePosEndX;
+    mousePosStartY = mousePosEndY;
+  }
+}
+
+function mouseup(event : MouseEvent) {
+  if (isDown) {
+    isDown = false;
+  }
+}
+
+
+function mousewheel(event: WheelEvent) {
+  event.preventDefault();
+
+  const delta = Math.sign(event.deltaY);
+
+  const zoomFactor = 0.01;
+  if (delta < 0) {
+    camera.zoom = Math.min(2, camera.zoom + zoomFactor);
+  } else {
+    // Zoom in
+    camera.zoom = Math.max(0.5, camera.zoom - zoomFactor);
+  }
+  console.log(camera)
 }
