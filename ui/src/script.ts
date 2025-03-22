@@ -348,8 +348,8 @@ function updateTileSizes(num:number){
 }
 
 function map_to_screen(map: Coordinate): Coordinate {
-  SCREEN_X_OFFSET = canvas.width/4;
-  SCREEN_Y_OFFSET = TILE_HEIGHT;
+  SCREEN_X_OFFSET = canvas.width / (4 * camera.zoom);
+  SCREEN_Y_OFFSET = 2* TILE_HEIGHT ;
 
   let screen: Coordinate = {x:0, y:0};
   screen.x = (map.x - map.y) * TILE_WIDTH_HALF +SCREEN_X_OFFSET ;
@@ -585,5 +585,5 @@ function mousewheel(event: WheelEvent) {
     // Zoom in
     camera.zoom = Math.max(0.5, camera.zoom - zoomFactor);
   }
-  console.log(camera)
+  // console.log(camera)
 }
