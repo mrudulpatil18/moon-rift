@@ -183,30 +183,30 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
     // Clear previous drawings
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.strokeStyle = Math.random() > 0.5 ? "white" : "white";
-    // Draw outer border
-    ctx.beginPath();
-    ctx.rect(s, s, s * width, s * height);
-    ctx.stroke();
-
-    // Draw walls
-    ctx.beginPath();
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) {
-        // Draw horizontal walls (when wallH is 1)
-        if (wallH[x][y] === 1) {
-          ctx.moveTo(s + x * s, s + (y + 1) * s);
-          ctx.lineTo(s + (x + 1) * s, s + (y + 1) * s);
-        }
-
-        // Draw vertical walls (when wallV is 1)
-        if (wallV[x][y] === 1) {
-          ctx.moveTo(s + (x + 1) * s, s + y * s);
-          ctx.lineTo(s + (x + 1) * s, s + (y + 1) * s);
-        }
-      }
-    }
-    ctx.stroke();
+    // ctx.strokeStyle = Math.random() > 0.5 ? "white" : "white";
+    // // Draw outer border
+    // ctx.beginPath();
+    // ctx.rect(s, s, s * width, s * height);
+    // ctx.stroke();
+    //
+    // // Draw walls
+    // ctx.beginPath();
+    // for (let x = 0; x < width; x++) {
+    //   for (let y = 0; y < height; y++) {
+    //     // Draw horizontal walls (when wallH is 1)
+    //     if (wallH[x][y] === 1) {
+    //       ctx.moveTo(s + x * s, s + (y + 1) * s);
+    //       ctx.lineTo(s + (x + 1) * s, s + (y + 1) * s);
+    //     }
+    //
+    //     // Draw vertical walls (when wallV is 1)
+    //     if (wallV[x][y] === 1) {
+    //       ctx.moveTo(s + (x + 1) * s, s + y * s);
+    //       ctx.lineTo(s + (x + 1) * s, s + (y + 1) * s);
+    //     }
+    //   }
+    // }
+    // ctx.stroke();
 
     // Draw start and end points
     // if (startX !== undefined && startY !== undefined) {
@@ -222,18 +222,18 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
     //   ctx.fill();
     // }
     //
-    if (endX !== undefined && endY !== undefined) {
-      ctx.fillStyle = "red";
-      ctx.beginPath();
-      ctx.arc(
-        s + endX * s + s / 2,
-        s + endY * s + s / 2,
-        s / 4,
-        0,
-        2 * Math.PI
-      );
-      ctx.fill();
-    }
+    // if (endX !== undefined && endY !== undefined) {
+    //   ctx.fillStyle = "red";
+    //   ctx.beginPath();
+    //   ctx.arc(
+    //     s + endX * s + s / 2,
+    //     s + endY * s + s / 2,
+    //     s / 4,
+    //     0,
+    //     2 * Math.PI
+    //   );
+    //   ctx.fill();
+    // }
 
     updateTileSizes(50);
     // draw maze
@@ -515,16 +515,16 @@ class Player {
   }
 
   draw(){
-    this.context.fillStyle = "green";
-    this.context.beginPath();
-    this.context.arc(
-        this.x,
-        this.y,
-        this.radius,
-        0,
-        2 * Math.PI
-    );
-    this.context.fill();
+    // this.context.fillStyle = "green";
+    // this.context.beginPath();
+    // this.context.arc(
+    //     this.x,
+    //     this.y,
+    //     this.radius,
+    //     0,
+    //     2 * Math.PI
+    // );
+    // this.context.fill();
     drawImpOnIsometricMaze(map_to_screen({x: 2* this.position.x+1, y: 2 * this.position.y+1}), this.context, camera, true);
   }
 
