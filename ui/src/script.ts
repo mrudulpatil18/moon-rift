@@ -13,6 +13,7 @@ const s = 25; // cell size
 let gameInitialized = false;
 // const SERVER_URL = `mazerunner-ynnb.onrender.com`
 const SERVER_URL = "localhost"
+let thickGrid: Array<Array<number>>;
 
 let TILE_WIDTH = 64;
 let TILE_WIDTH_HALF = 32;
@@ -59,22 +60,22 @@ function moveSomething(e: { keyCode: any; }) {
 		case 37:
 			// left key pressed
       player.makeMove(Direction.Left);
-      console.log("Left pressed, new pos: " + player.position.x + " " + player.position.y)
+      console.log("Left pressed, new pos: " + player.position.Tx + " " + player.position.Ty)
 			break;
 		case 38:
 			// up key pressed
       player.makeMove(Direction.Up);
-      console.log("Up pressed, new pos: " + player.position.x + " " + player.position.y)
+      console.log("Up pressed, new pos: " + player.position.Tx + " " + player.position.Ty)
 			break;
 		case 39:
 			// right key pressed
       player.makeMove(Direction.Right);
-      console.log("Right pressed, new pos: " + player.position.x + " " + player.position.y)
+      console.log("Right pressed, new pos: " + player.position.Tx + " " + player.position.Ty)
 			break;
 		case 40:
 			// down key pressed
       player.makeMove(Direction.Down);
-      console.log("Down pressed, new pos: " + player.position.x + " " + player.position.y)
+      console.log("Down pressed, new pos: " + player.position.Tx + " " + player.position.Ty)
 			break;
 	}
 }
@@ -113,7 +114,7 @@ async function createRoom() {
 
   const socket = new WebSocket(`ws://${SERVER_URL}:8080/websocket?room=${responseData}`);
 
-  socket.onopen = function(event) {
+  socket.onopen = function() {
     console.log("WebSocket connection established.");
     // Request maze data once connection is established
     if (socket.readyState === WebSocket.OPEN) {
@@ -151,7 +152,7 @@ async function createRoom() {
 function initializeGame() {
   if (!gameInitialized && data) {
     camera = new Camera(canvas.getContext("2d")!);
-    player = new Player(canvas.getContext("2d")!, {x: data.startX, y: data.startY}, 19, 6);
+    player = new Player(canvas.getContext("2d")!, thinToThickCord({x: data.startX, y: data.startY}), 19, 6);
     gameInitialized = true;
     window.requestAnimationFrame(gameLoop);
     console.log("Game initialized with player at: ", data.startX, data.startY);
@@ -164,7 +165,7 @@ function gameLoop(timeStamp: number): void {
   player.context.clearRect(0, 0, canvas.width, canvas.height)
   camera.applyTransform();
 
-  const thickGrid = getThickWalledMaze(data)
+  thickGrid = getThickWalledMaze(data)
   drawMaze(data, thickGrid, camera);
   camera.resetTransform();
 
@@ -174,7 +175,7 @@ function gameLoop(timeStamp: number): void {
 
 function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
   if (!data) return;
-  const { width, height, wallH, wallV, startX, startY, endX, endY } = data;
+  const { endX, endY } = data;
 
 
   if (canvas.getContext) {
@@ -241,17 +242,16 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
       for(let j = 0; j < grid.length; j++){
         let pos = map_to_screen({x: i, y: j});
         drawIsometricTile(pos, ctx, false, camera)
-        if(i == 2* (endX) + 1 && j == 2* (endY) + 1 && !isEqualCoordinates(player.position, {x:endX, y:endY})){
-
+        if(i == 2* (endX) + 1 && j == 2* (endY) + 1 && !isEqualCoordinates(thickToThinCord(player.position), {x:endX, y:endY})){
           drawImpOnIsometricMaze(pos, ctx, camera);
           continue;
         }
 
-        if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1 || grid[i][j] == 1){
+        if(grid[i][j] == 1){
           drawIsometricTile(pos, ctx, true, camera)
         }
 
-        if(isEqualCoordinates(player.position, {x:(i-1)/2, y: (j-1)/2})){
+        if(isEqualCoordinates(thickToThinCord(player.position), thickToThinCord({Tx:i, Ty: j}))){
           player.draw()
         }
       }
@@ -293,42 +293,71 @@ type Coordinate = {
   y: number;
 };
 
-function findNextPath( maze: MazeResponse, curr: Coordinate, prev = { x: -1, y: -1 }): Array<Coordinate> {
-  const path = [];
-  while (true) {
-    const currCellExits = fetchExitInfo(maze, curr);
-    const filteredExits= removeItem(currCellExits, prev, isEqualCoordinates);
-    if (filteredExits.length != 1) {
-      break;
-    }
-    for (let cell of filteredExits) {
-      prev = curr;
-      curr = cell;
-      path.push(curr);
-    }
-  }
-  return path;
+type ThickCoordinate = {
+  Tx: number;
+  Ty: number;
 }
 
-function fetchExitInfo(maze: MazeResponse, curr: Coordinate): Array<Coordinate> {
-  const { wallH, wallV } = maze;
-  const currX = curr.x;
-  const currY = curr.y;
-  const exits = new Array<Coordinate>();
-  if (wallH[currX][currY] == 0) {
-    exits.push({ x: currX, y: currY + 1 });
+// function findNextPath( maze: MazeResponse, curr: Coordinate, prev = { x: -1, y: -1 }): Array<Coordinate> {
+//   const path = [];
+//   while (true) {
+//     const currCellExits = fetchExitInfoOld(maze, curr);
+//     const filteredExits= removeItem(currCellExits, prev, isEqualCoordinates);
+//     if (filteredExits.length != 1) {
+//       break;
+//     }
+//     for (let cell of filteredExits) {
+//       prev = curr;
+//       curr = cell;
+//       path.push(curr);
+//     }
+//   }
+//   return path;
+// }
+
+function fetchExitInfo(thickMaze: number[][], curr: ThickCoordinate){
+  console.log(thickMaze)
+  const currX = curr.Tx;
+  const currY = curr.Ty;
+  const exits = new Array<ThickCoordinate>();
+
+  if(currX < thickMaze.length && thickMaze[currX+1][currY] == 0){
+    exits.push({Tx: currX+1, Ty: currY});
   }
-  if (currY > 0 && wallH[currX][currY - 1] == 0) {
-    exits.push({ x: currX, y: currY - 1 });
+  if(currY < thickMaze.length && thickMaze[currX][currY+1] == 0){
+    exits.push({Tx: currX, Ty: currY+1});
   }
-  if (wallV[currX][currY] == 0) {
-    exits.push({ x: currX + 1, y: currY });
+  if(currX-1 > 0 && thickMaze[currX-1][currY] == 0){
+    exits.push({Tx: currX-1, Ty: currY});
   }
-  if (currX > 0 && wallV[currX - 1][currY] == 0) {
-    exits.push({ x: currX - 1, y: currY });
+  if(currY-1 > 0 && thickMaze[currX][currY-1] == 0){
+    exits.push({Tx: currX, Ty: currY-1});
   }
+
   return exits;
+
 }
+
+// function fetchExitInfoOld(maze: MazeResponse, curr: Coordinate): Array<Coordinate> {
+//   const { wallH, wallV } = maze;
+//   const currX = curr.x;
+//   const currY = curr.y;
+//   const exits = new Array<Coordinate>();
+//   if (wallH[currX][currY] == 0) {
+//     exits.push({ x: currX, y: currY + 1 });
+//   }
+//   if (currY > 0 && wallH[currX][currY - 1] == 0) {
+//     exits.push({ x: currX, y: currY - 1 });
+//   }
+//   if (wallV[currX][currY] == 0) {
+//     exits.push({ x: currX + 1, y: currY });
+//   }
+//   if (currX > 0 && wallV[currX - 1][currY] == 0) {
+//     exits.push({ x: currX - 1, y: currY });
+//   }
+//   return exits;
+// }
+
 
 function removeItem<T>(arr: Array<T>, value: T, compareFn: (a: T, b: T) => boolean): Array<T> {
   const index = arr.findIndex(item => compareFn(item, value));
@@ -478,7 +507,7 @@ function moveFromOrigin(isoOrigin: Coordinate, cord: Coordinate){
 }
 
 function getThickWalledMaze(maze : MazeResponse){
-  const { width, height, wallH, wallV, startX, startY, endX, endY } = maze;
+  const { width, height, wallH, wallV } = maze;
   const dimWidth = 2*width + 1;
   const dimHeight = 2*height + 1;
   const grid = Array.from(Array(dimHeight), () => new Array(dimWidth).fill(0));
@@ -495,18 +524,25 @@ function getThickWalledMaze(maze : MazeResponse){
         grid[2*x][2*y] = 1;
       }
     }
+  for(let x = 0; x < dimWidth; x++) {
+    for (let y = 0; y < dimHeight; y++) {
+      if(x == 0 || y == 0 || x == dimWidth-1 || y == dimHeight-1){
+        grid[x][y] = 1;
+      }
+    }
+  }
   // console.log(grid);
   return grid;
 }
 
 class Player {
   context: CanvasRenderingContext2D;
-  position: Coordinate;
+  position: ThickCoordinate;
   x!: number;
   y!: number;
   v: number;
   radius: any;
-  constructor (context: CanvasRenderingContext2D, position: Coordinate, v: number, radius:number){
+  constructor (context: CanvasRenderingContext2D, position: ThickCoordinate, v: number, radius:number){
     this.context = context;
     this.position = position;
     this.v = v;
@@ -525,20 +561,20 @@ class Player {
     //     2 * Math.PI
     // );
     // this.context.fill();
-    drawImpOnIsometricMaze(map_to_screen({x: 2* this.position.x+1, y: 2 * this.position.y+1}), this.context, camera, true);
+    drawImpOnIsometricMaze(map_to_screen({x: this.position.Tx, y: this.position.Ty}), this.context, camera, true);
   }
 
   updateXY():void{
-    this.x = s + this.position.x * s + s / 2;
-    this.y = s + this.position.y * s + s / 2;
+    // this.x = s + this.position.x * s + s / 2;
+    // this.y = s + this.position.y * s + s / 2;
   }
 
   makeMove(direction: Direction){
-    if(isEqualCoordinates(this.position, {x: data.endX, y: data.endY})){
+    if(isEqualCoordinates(thickToThinCord(this.position), {x: data.endX, y: data.endY})){
       return;
     }
     const curr = this.position;
-    const exits = fetchExitInfo(data, curr);
+    const exits = fetchExitInfo(thickGrid, curr);
     let dx =0, dy = 0;
     switch (direction){
       case Direction.Down:
@@ -554,10 +590,10 @@ class Player {
         dx = 1
         break
     }
-    const next = {x: curr.x + dx, y: curr.y + dy};
-    if (exits.find(e => e.x == next.x && e.y == next.y)) {
+    const next = {Tx: curr.Tx + dx, Ty: curr.Ty + dy};
+    if (exits.find(e => e.Tx == next.Tx && e.Ty == next.Ty)) {
       this.moveTo(next);
-      socket?.send(JSON.stringify({from:curr, to:next}));
+      socket?.send(JSON.stringify({from:thickToThinCord(curr), to:thickToThinCord(next)}));
       //   const path = findNextPath(data, next, curr);
       //   if(path.length == 0){
       //     return
@@ -568,7 +604,7 @@ class Player {
     }
   }
 
-  moveTo(next: Coordinate) {
+  moveTo(next: ThickCoordinate) {
     this.position = next;
     this.updateXY();
   }
@@ -624,7 +660,7 @@ function mousemove(event: MouseEvent) {
   }
 }
 
-function mouseup(event : MouseEvent) {
+function mouseup() {
   if (isDown) {
     isDown = false;
   }
@@ -644,4 +680,12 @@ function mousewheel(event: WheelEvent) {
     camera.zoom = Math.max(0.5, camera.zoom - zoomFactor);
   }
   // console.log(camera)
+}
+
+function thinToThickCord(cord: Coordinate): ThickCoordinate {
+  return {Tx: 2*cord.x+1, Ty: 2*cord.y+1};
+}
+
+function thickToThinCord(tCord: ThickCoordinate){
+  return {x: (tCord.Tx-1)/2, y: (tCord.Ty-1)/2}
 }
