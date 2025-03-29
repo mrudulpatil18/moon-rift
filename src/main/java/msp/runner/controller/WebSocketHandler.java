@@ -42,9 +42,14 @@ public class WebSocketHandler extends TextWebSocketHandler {
             throw new Exception("Room already in use");
         }
         if(!sessions.containsKey(roomId)) {
+            //first player
             sessions.put(roomId, new HashSet<>());
+
         }
         sessions.get(roomId).add(session);
+        gameService.addPlayer(roomId, session.getId());//to set player1 and player2 session ID
+
+
 //        PlayerMove playerMoveDTO = new PlayerMove(new Coordinate(10,20), new Coordinate(5, 0));
 //        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(playerMoveDTO)));
 //        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(new Status(PlayerStatus.GET_MAZE_NEW_LEVEL))));
@@ -71,16 +76,22 @@ public class WebSocketHandler extends TextWebSocketHandler {
             Status status = objectMapper.readValue(message.getPayload(), Status.class);
             // ... use type1
             switch (status.getStatusMessage()){
-                case GET_MAZE_NEW_LEVEL -> session.sendMessage(new TextMessage(objectMapper.writeValueAsString(gameService.generateNewLevel(roomId))));
-                case GET_MAZE_SAME_LEVEL -> session.sendMessage(new TextMessage(objectMapper.writeValueAsString(gameService.generateSameLevel(roomId))));
+                case GET_MAZE_NEW_LEVEL -> session.sendMessage(new TextMessage(objectMapper.writeValueAsString(gameService.generateNewLevel(roomId, session.getId()))));
+                case GET_MAZE_SAME_LEVEL -> session.sendMessage(new TextMessage(objectMapper.writeValueAsString(gameService.generateSameLevel(roomId, session.getId()))));
             }
         }
         else{
             PlayerMove playerMove = objectMapper.readValue(message.getPayload(), PlayerMove.class);
-            ServerMessage moveStatus = gameService.handleMove(roomId, playerMove);
+            ServerMessage moveStatus = gameService.handleMove(roomId, playerMove, session.getId());
             if(moveStatus != null) {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(moveStatus)));}
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(moveStatus)));
+            if(moveStatus == ServerMessage.UPDATE_MAZE_LEVEL){
+                for(WebSocketSession session1 : sessions.get(roomId)) {
+                if(session1 != session) {
+                    session1.sendMessage(new TextMessage(objectMapper.writeValueAsString(ServerMessage.RESET_MAZE)));
+                }
             }
+            }}}
 
 //        else if (jsonNode.has("type2SpecificField")) {
 //            Type2 type2 = mapper.convertValue(jsonNode, Type2.class);
@@ -90,11 +101,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
 
 
 //        if(sessions.containsKey(roomId)) {
-//            for(WebSocketSession session1 : sessions.get(roomId)) {
-//                if(session1 != session) {
-//                    session1.sendMessage(new TextMessage(message.getPayload()));
-//                }
-//            }
+//
 //        }
     }
 

@@ -15,7 +15,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class GameState {
     Maze maze;
     List<PlayerMove> playerMoves = new CopyOnWriteArrayList<>();
-    int level = 4;
+    int level = 3;
 
     public Coordinate getLastPosition() {
         if(maze == null) return null;

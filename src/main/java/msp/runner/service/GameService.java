@@ -22,9 +22,18 @@ public class GameService {
         activeGames.put(roomId, new Game(roomId));
     }
 
-    public ServerMessage handleMove(String roomId, PlayerMove playerMove) {
-        if(activeGames.get(roomId).updatePlayer1State(playerMove)){
-            if(activeGames.get(roomId).isMazeSolved()){
+    public void addPlayer(String roomId, String sessionId) {
+        Game game = activeGames.get(roomId);
+        if(game.getPlayer1SessionId() == null) {
+            game.setPlayer1SessionId(sessionId);
+        }else if(game.getPlayer2SessionId() == null) {
+            game.setPlayer2SessionId(sessionId);
+        }
+    }
+
+    public ServerMessage handleMove(String roomId, PlayerMove playerMove, String sessionId) {
+        if(activeGames.get(roomId).updatePlayerState(playerMove, sessionId)){
+            if(activeGames.get(roomId).isMazeSolved(sessionId)){
                 return ServerMessage.UPDATE_MAZE_LEVEL;
             }
             return null;
@@ -32,30 +41,31 @@ public class GameService {
         return ServerMessage.INVALID_MOVE;
     }
 
-    public MazeDTO generateNewLevel(String roomId) {
-        GameState player1State = activeGames.get(roomId).getPlayer1State();
-        int dimension = player1State.getLevel() + 1;
+    public MazeDTO generateNewLevel(String roomId, String sessionId) {
+
+        GameState playerState = sessionId.equals(activeGames.get(roomId).getPlayer1SessionId()) ? activeGames.get(roomId).getPlayer1State() : activeGames.get(roomId).getPlayer2State();
+        int dimension = playerState.getLevel() + 1;
         Coordinate startCoordinate = null;
-        if(player1State.getLastPosition() != null){
-            startCoordinate = player1State .getLastPosition();
+        if(playerState.getLastPosition() != null){
+            startCoordinate = playerState.getLastPosition();
         }
         Maze maze =  mazeGenerator.generateMaze(dimension, dimension, startCoordinate);
-        player1State.setLevel(dimension);
-        maze.printMaze();
-        player1State.setMaze(maze);
+        playerState.setLevel(dimension);
+//        maze.printMaze();
+        playerState.setMaze(maze);
         return new MazeDTO(maze);
     }
 
-    public MazeDTO generateSameLevel(String roomId) {
-        GameState player1State = activeGames.get(roomId).getPlayer1State();
-        int dimension = activeGames.get(roomId).getPlayer1State().getLevel() ;
+    public MazeDTO generateSameLevel(String roomId, String sessionId) {
+        GameState playerState = sessionId.equals(activeGames.get(roomId).getPlayer1SessionId()) ? activeGames.get(roomId).getPlayer1State() : activeGames.get(roomId).getPlayer2State();
+        int dimension = playerState.getLevel();
         Coordinate startCoordinate = null;
-        if(player1State.getLastPosition() != null){
-            startCoordinate = player1State .getLastPosition();
+        if(playerState.getLastPosition() != null){
+            startCoordinate = playerState .getLastPosition();
         }
         Maze maze =  mazeGenerator.generateMaze(dimension, dimension, startCoordinate);
-        maze.printMaze();
-        player1State.setMaze(maze);
+//        maze.printMaze();
+        playerState.setMaze(maze);
         return new MazeDTO(maze);
     }
 }

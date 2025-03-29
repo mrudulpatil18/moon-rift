@@ -30,7 +30,14 @@
 </head>
 
 <body>
-<canvas id="canvas" style="image-rendering: pixelated;"></canvas>
+<button id="create-button">Create Room</button>
+<button id="join-button">Join Room</button>
+<form hidden id="form">
+    <label for="room">First name:</label><br>
+    <input type="text" id="room" name="room" value=""><br>
+    <button id="submit-button" type="submit">Submit</button>
+</form>
+<canvas id="canvas" style="image-rendering: pixelated;" hidden></canvas>
 </body>
 
 </html> 

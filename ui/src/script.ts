@@ -1,5 +1,38 @@
 ("use strict");
 
+const joinButton = document.getElementById("join-button");
+const createButton = document.getElementById("create-button");
+const submitButton = document.getElementById("submit-button");
+const form = document.getElementById("form");
+
+createButton?.addEventListener("click", (e) => {
+  e.preventDefault();
+  joinButton!.hidden = true;
+  createButton.hidden = true;
+  canvas = <HTMLCanvasElement>document.getElementById("canvas");
+  canvas.hidden = false
+  startRunner();
+})
+
+joinButton?.addEventListener("click", (e) => {
+  e.preventDefault();
+  form!.hidden = false;
+})
+
+submitButton?.addEventListener("click", (e) => {
+  e.preventDefault();
+  joinButton!.hidden = true;
+  createButton!.hidden = true;
+  form!.hidden = true;
+  canvas = <HTMLCanvasElement>document.getElementById("canvas");
+  canvas.hidden = false
+  const input = document.getElementById("room");
+  // @ts-ignore
+  startRunner(input.value);
+})
+
+
+
 
 let data: MazeResponse;
 let secondsPassed = 0,
@@ -25,6 +58,8 @@ let mousePosStartX: number, mousePosStartY: number;
 let mousePosEndX: number, mousePosEndY: number;
 let SCREEN_X_OFFSET, SCREEN_Y_OFFSET;
 
+let prevValidPos: Coordinate;
+
 window.addEventListener('mousedown', mousedown)
 window.addEventListener('mousemove', mousemove)
 window.addEventListener('mouseup', mouseup)
@@ -32,14 +67,13 @@ window.addEventListener('resize', resizeCanvas);
 window.addEventListener('wheel', mousewheel);
 
 window.addEventListener("keydown", moveSomething, false);
-window.onload = startRunner;
+// window.onload = startRunner;
 
-async function startRunner() {
-  canvas = <HTMLCanvasElement>document.getElementById("canvas");
+async function startRunner(id = null) {
 
 
   accountForDPI(canvas);
-  socket = await createRoom();
+    socket = await createRoom(id);
   console.log(socket);
 }
 
@@ -99,18 +133,25 @@ function accountForDPI(canvas:HTMLCanvasElement) {
   canvas.style.height = `${rect.height}px`;
 }
 
-async function createRoom() {
-  let response = await fetch(`http://${SERVER_URL}:8080/room/create`, {
-    method: "POST",
-  });
+async function createRoom(room = null) {
+  let responseData;
+  if(room == null){
+    let response = await fetch(`http://${SERVER_URL}:8080/room/create`, {
+      method: "POST",
+    });
 
-  if (!response.ok) {
-    console.error(`Error: ${response.status} ${response.statusText}`);
-    return;
+    if (!response.ok) {
+      console.error(`Error: ${response.status} ${response.statusText}`);
+      return;
+    }
+
+    responseData = await response.text(); // Assuming the API returns a string
+    console.log(responseData);
+  }else{
+    responseData = room;
+    console.log("joining: " + responseData);
   }
 
-  let responseData = await response.text(); // Assuming the API returns a string
-  console.log(responseData);
 
   const socket = new WebSocket(`ws://${SERVER_URL}:8080/websocket?room=${responseData}`);
 
@@ -126,6 +167,7 @@ async function createRoom() {
     const messageData = JSON.parse(event.data);
     if(messageData.hasOwnProperty("wallH")){
       data = messageData;
+      prevValidPos = {x: data.startX, y: data.startY};
       // Initialize player after receiving maze data
       initializeGame();
     }
@@ -133,7 +175,16 @@ async function createRoom() {
       setTimeout(function() {
         sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL"});
         console.log("Received message:", messageData);
-      }, 2000);
+      }, 100);
+    }
+    if(messageData == "RESET_MAZE"){
+      setTimeout(function() {
+        sendMessage({ statusMessage: "GET_MAZE_SAME_LEVEL"});
+        console.log("Received message:", messageData);
+      }, 100);
+    }
+    if(messageData == "INVALID_MOVE"){
+      console.log("Invalid Move");
     }
 
   };
@@ -316,7 +367,7 @@ type ThickCoordinate = {
 // }
 
 function fetchExitInfo(thickMaze: number[][], curr: ThickCoordinate){
-  console.log(thickMaze)
+  // console.log(thickMaze)
   const currX = curr.Tx;
   const currY = curr.Ty;
   const exits = new Array<ThickCoordinate>();
@@ -374,6 +425,7 @@ function isEqualCoordinates(a: Coordinate, b: Coordinate): boolean{
 function sendMessage(message : any) {
       if (socket?.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify(message));
+          console.log("Message Sent: " + JSON.stringify(message));
       } else {
           console.error("WebSocket connection is not open. but why ? ");
       }
@@ -593,7 +645,10 @@ class Player {
     const next = {Tx: curr.Tx + dx, Ty: curr.Ty + dy};
     if (exits.find(e => e.Tx == next.Tx && e.Ty == next.Ty)) {
       this.moveTo(next);
-      socket?.send(JSON.stringify({from:thickToThinCord(curr), to:thickToThinCord(next)}));
+      if(next.Tx % 2 == 1 && next.Ty %2 == 1){
+        sendMessage({from: prevValidPos, to:thickToThinCord(next)})
+        prevValidPos = thickToThinCord(next);
+      }
       //   const path = findNextPath(data, next, curr);
       //   if(path.length == 0){
       //     return
