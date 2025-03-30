@@ -12,6 +12,7 @@
 	<groupId>msp</groupId>
 	<artifactId>runner</artifactId>
 	<version>1.0.0</version>
+	<packaging>jar</packaging>
 	<name>runner</name>
 	<description>Demo project for Spring Boot</description>
 	<url />
