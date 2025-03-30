@@ -1,4 +1,4 @@
-("use strict");
+"use strict";
 
 const joinButton = document.getElementById("join-button");
 const createButton = document.getElementById("create-button");
@@ -32,8 +32,6 @@ submitButton?.addEventListener("click", (e) => {
 })
 
 
-
-
 let data: MazeResponse;
 let secondsPassed = 0,
     oldTimestamp = 0,
@@ -48,10 +46,10 @@ let gameInitialized = false;
 const SERVER_URL = "localhost"
 let thickGrid: Array<Array<number>>;
 
-let TILE_WIDTH = 64;
-let TILE_WIDTH_HALF = 32;
-let TILE_HEIGHT = 32;
-let TILE_HEIGHT_HALF = 16;
+let TILE_WIDTH = 32;
+let TILE_WIDTH_HALF = 16;
+let TILE_HEIGHT = 16;
+let TILE_HEIGHT_HALF = 8;
 
 let isDown = false;
 let mousePosStartX: number, mousePosStartY: number;
@@ -59,6 +57,9 @@ let mousePosEndX: number, mousePosEndY: number;
 let SCREEN_X_OFFSET, SCREEN_Y_OFFSET;
 
 let prevValidPos: Coordinate;
+
+const tileAtlas = new Image();
+tileAtlas.src = "./moon_tileset.png"
 
 window.addEventListener('mousedown', mousedown)
 window.addEventListener('mousemove', mousemove)
@@ -291,19 +292,41 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
     //   ctx.fill();
     // }
 
-    updateTileSizes(50);
+    updateTileSizes(32);
+
+    const extraTiles = 0
     // draw maze
-    for(let i = 0; i < grid.length; i++){
-      for(let j = 0; j < grid.length; j++){
+    for(let i = -extraTiles; i < grid.length +extraTiles; i++){
+      for(let j = -extraTiles; j < grid.length +extraTiles; j++){
         let pos = map_to_screen({x: i, y: j});
-        drawIsometricTile(pos, ctx, false, camera)
+        // if(i == grid.length+extraTiles-1 && j == grid.length+extraTiles-1){
+        //   drawTile(pos, camera, "CORNER");
+        // }else if(i == grid.length+extraTiles-1){
+        //   drawTile(pos, camera, "RIGHT_EDGE");
+        // }else if(j == grid.length+extraTiles-1){
+        //   drawTile(pos, camera, "LEFT_EDGE");
+        // }else{
+          drawTile(pos, camera, "LAND");
+        // }
+        // if(i < 0 || j < 0 || i >= grid.length || j >= grid.length ){
+        //   if(i % 2 == 0 && j % 2 == 0){
+        //     // drawTile(pos, camera, "TREE");
+        //   }
+        //   continue;
+        // }
+
+        if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1 ){}
+
+        // drawIsometricTile(pos, ctx, false, camera
+
         if(i == 2* (endX) + 1 && j == 2* (endY) + 1 && !isEqualCoordinates(thickToThinCord(player.position), {x:endX, y:endY})){
           drawImpOnIsometricMaze(pos, ctx, camera);
           continue;
         }
 
         if(grid[i][j] == 1){
-          drawIsometricTile(pos, ctx, true, camera)
+          // drawIsometricTile(pos, ctx, true, camera)
+          drawTile(pos, camera, "WALL");
         }
 
         if(isEqualCoordinates(thickToThinCord(player.position), thickToThinCord({Tx:i, Ty: j}))){
@@ -342,6 +365,18 @@ enum Direction {
   Left,
   Right,
 }
+
+const TileType = {
+  "LAND": {x: 1, y: 0},
+  "LEFT_EDGE": {x: 0, y: 1},
+  "RIGHT_EDGE": {x: 1, y: 1},
+  "CORNER": {x: 2, y: 1},
+  // "LEFT_WALL": {x: 2, y: 2},
+  // "RIGHT_WALL": {x: 4, y: 2},
+  "WALL": {x: 5, y: 3},
+  "BIG_WALL": {x: 5, y: 3},
+  "TREE": {x: 4, y: 5},
+};
 
 type Coordinate = {
   x: number;
@@ -436,7 +471,7 @@ function sendMessage(message : any) {
 }
 
 function updateTileSizes(num:number){
-  TILE_WIDTH = canvas.width/num;
+  TILE_WIDTH = num;
   TILE_WIDTH_HALF = TILE_WIDTH/2;
   TILE_HEIGHT = TILE_WIDTH / 2;
   TILE_HEIGHT_HALF = TILE_HEIGHT / 2;
@@ -747,4 +782,21 @@ function thinToThickCord(cord: Coordinate): ThickCoordinate {
 
 function thickToThinCord(tCord: ThickCoordinate){
   return {x: (tCord.Tx-1)/2, y: (tCord.Ty-1)/2}
+}
+
+function drawTile(screenCord: Coordinate, camera: Camera, tileType: String ){
+ const tsize = TILE_WIDTH;
+ // @ts-ignore
+ const tilePosCord = TileType[tileType];
+ screenCord = applyCamera(screenCord, camera);
+
+ const ctx = canvas.getContext('2d');
+
+  if(tileType == "WALL" || tileType == "TREE") {
+    screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT});
+  }
+  if(tileType == "TREE") {
+    ctx?.drawImage(tileAtlas,(tilePosCord.x) * tsize, (tilePosCord.y-1) * tsize, tsize, 2*tsize, screenCord.x, screenCord.y - tsize, tsize, 2*tsize);
+  }
+  ctx?.drawImage(tileAtlas,(tilePosCord.x) * tsize, tilePosCord.y * tsize, tsize, tsize, screenCord.x, screenCord.y, tsize, tsize);
 }
