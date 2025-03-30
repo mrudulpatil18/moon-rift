@@ -11,6 +11,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -49,6 +50,16 @@ public class WebSocketHandler extends TextWebSocketHandler {
         sessions.get(roomId).add(session);
         gameService.addPlayer(roomId, session.getId());//to set player1 and player2 session ID
 
+        if(sessions.get(roomId).size() == 2) {
+            System.out.println("Sending START_GAME");
+            sessions.get(roomId).forEach(socketSession -> {
+                try {
+                    socketSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(ServerMessage.START_GAME)));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
 
 //        PlayerMove playerMoveDTO = new PlayerMove(new Coordinate(10,20), new Coordinate(5, 0));
 //        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(playerMoveDTO)));
@@ -60,6 +71,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
     String getRoomFromSessionUrl(WebSocketSession session) {
         String roomId = session.getUri().getQuery().replace("room=", "");
         return roomService.isValidRoom(roomId) ? roomId : null;
+
     }
 
 
@@ -84,6 +96,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
             PlayerMove playerMove = objectMapper.readValue(message.getPayload(), PlayerMove.class);
             ServerMessage moveStatus = gameService.handleMove(roomId, playerMove, session.getId());
             if(moveStatus != null) {
+                System.out.println(message.getPayload());
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(moveStatus)));
             if(moveStatus == ServerMessage.UPDATE_MAZE_LEVEL){
                 for(WebSocketSession session1 : sessions.get(roomId)) {

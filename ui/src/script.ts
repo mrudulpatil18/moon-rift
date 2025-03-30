@@ -159,7 +159,7 @@ async function createRoom(room = null) {
     console.log("WebSocket connection established.");
     // Request maze data once connection is established
     if (socket.readyState === WebSocket.OPEN) {
-      sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL"});
+      console.log("WebSocket connection established.");
     }
   };
 
@@ -170,6 +170,9 @@ async function createRoom(room = null) {
       prevValidPos = {x: data.startX, y: data.startY};
       // Initialize player after receiving maze data
       initializeGame();
+    }
+    if(messageData == "START_GAME"){
+      sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL"});
     }
     if(messageData == "UPDATE_MAZE_LEVEL"){
       setTimeout(function() {
@@ -196,6 +199,7 @@ async function createRoom(room = null) {
 
   socket.onclose = function(event) {
     console.log("WebSocket connection closed:", event);
+    window.location.reload();
   };
   return socket;
 }
