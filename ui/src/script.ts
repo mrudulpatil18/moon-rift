@@ -33,9 +33,6 @@ submitButton?.addEventListener("click", (e) => {
 
 
 let data: MazeResponse;
-let secondsPassed = 0,
-    oldTimestamp = 0,
-    fps: number;
 let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
 let player: Player
@@ -234,11 +231,6 @@ function initializeGame() {
 
     // Convert grid center to screen coordinates
     const screenCenter = map_to_screen(gridCenter);
-
-    secondsPassed = 0;
-    oldTimestamp = 0;
-
-
     // Set camera position to center the grid
     // We need to offset by half the canvas dimensions divided by zoom
     camera.position = {
@@ -267,7 +259,6 @@ function gameLoop(timeStamp: number): void {
   drawMaze(data, thickGrid, camera);
   camera.resetTransform();
 
-  showFps(timeStamp);
   window.requestAnimationFrame(gameLoop);
 }
 
@@ -388,16 +379,6 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
 
 function dist(pt1: Coordinate, pt2: Coordinate) {
   return Math.floor(Math.sqrt(Math.pow(pt1.x-pt2.x, 2) + Math.pow(pt1.y-pt2.y, 2))  );
-}
-
-//show fps
-function showFps(timeStamp: number): void {
-  secondsPassed = (timeStamp - oldTimestamp) / 1000;
-  oldTimestamp = timeStamp;
-  fps = 1 / secondsPassed;
-  ctx.fillStyle = "gray";
-  ctx.font = "20px serif";
-  ctx.fillText("FPS: " + fps.toFixed(0), 200, 20);
 }
 
 type MazeResponse = {
