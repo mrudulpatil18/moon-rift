@@ -8,7 +8,7 @@
     <script type="module" src="script.js"></script>
     <style>
         html, body {
-            background-color:  #000000;
+            background-color:  #111111;
         }
         canvas {
             height: 100%;
@@ -24,12 +24,57 @@
             image-rendering: -o-crisp-edges;
             image-rendering: pixelated;
             -ms-interpolation-mode: nearest-neighbor;
+            z-index: 1;
+        }
+
+        .stars, .twinkling, .clouds {
+            position: absolute;
+            display: block;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .stars {
+            z-index: -2;
+            background: #000 url('https://i.imgur.com/YKY28eT.png') repeat top center;
+        }
+
+        .twinkling {
+            z-index: -1;
+            background: transparent url('https://i.imgur.com/XYMF4ca.png') repeat top center;
+            animation: move-twink-back 200s linear infinite;
+        }
+
+        .clouds {
+            z-index: 2;
+            background: transparent url('https://i.imgur.com/mHbScrQ.png') repeat top center;
+            animation: move-clouds-back 200s linear infinite;
+        }
+
+
+        @keyframes move-twink-back {
+            from { background-position: 0 0; }
+            to { background-position: -10000px 5000px; }
+        }
+
+        @keyframes move-clouds-back {
+            from { background-position: 0 0; }
+            to { background-position: 10000px 0; }
         }
 
     </style>
 </head>
 
 <body>
+<div class = "stars"></div>
+<div class = "twinkling"></div>
+<div class = "clouds"></div>
+
 <button id="create-button">Create Room</button>
 <button id="join-button">Join Room</button>
 <form hidden id="form">
