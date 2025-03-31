@@ -64,6 +64,9 @@ let prevValidPos: Coordinate;
 const tileAtlas = new Image();
 tileAtlas.src = "./moon_tileset.png"
 
+const towerTiles = new Image();
+  towerTiles.src = "./Tower-Sheet.png"
+
 window.addEventListener('mousedown', mousedown)
 window.addEventListener('mousemove', mousemove)
 window.addEventListener('mouseup', mouseup)
@@ -317,6 +320,12 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
         }
         // }
         if(i < 0 || j < 0 || i >= grid.length || j >= grid.length ){
+
+          //dont draw blocking tree in front
+          if((i > grid.length-1 && i < grid.length+2) != (j > grid.length-1 && j < grid.length+2)){
+            continue;
+          }
+
           if(dist({x:i, y: j}, center) <= grid.length/2 + extraTiles/2){
             drawTile(pos, camera, `TREE${treeTileTypeArray[i+extraTiles][j+extraTiles]}`);
           }
@@ -328,7 +337,8 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
         // drawIsometricTile(pos, ctx, false, camera
 
         if(i == 2* (endX) + 1 && j == 2* (endY) + 1 && !isEqualCoordinates(thickToThinCord(player.position), {x:endX, y:endY})){
-          drawImpOnIsometricMaze(pos, ctx, camera);
+          // drawImpOnIsometricMaze(pos, ctx, camera);
+          drawTower(pos, camera);
           continue;
         }
 
@@ -346,7 +356,7 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
 }
 
 function dist(pt1: Coordinate, pt2: Coordinate) {
-  return Math.sqrt(Math.pow(pt1.x-pt2.x, 2) + Math.pow(pt1.y-pt2.y, 2));
+  return Math.floor(Math.sqrt(Math.pow(pt1.x-pt2.x, 2) + Math.pow(pt1.y-pt2.y, 2))  );
 }
 
 //show fps
@@ -391,7 +401,7 @@ const TileType = {
   "CORNER": {x: 2, y: 1},
   // "LEFT_WALL": {x: 2, y: 2},
   // "RIGHT_WALL": {x: 4, y: 2},
-  "WALL": {x: 5, y: 3},
+  "WALL": {x: 4, y: 3},
   "TREE0": {x: 0, y: 4},
   "TREE1": {x: 1, y: 4},
   "TREE2": {x: 2, y: 4},
@@ -838,4 +848,17 @@ function generateRandomTileTypes(gridSize: number, extraTiles: number, maxValue 
           Math.floor(Math.random() * maxValue)
       )
   );
+}
+
+function drawTower(screenCord: Coordinate, camera: Camera){
+
+  const towerImgWidth = 64;
+  const towerImgHeight = 96;
+  // @ts-ignore
+  screenCord = applyCamera(screenCord, camera);
+
+  const ctx = canvas.getContext('2d');
+  //adjust offset and also get the tower to center
+  screenCord = moveFromOrigin(screenCord, {x: 0, y: -towerImgHeight/2 +towerImgHeight /8 });
+  ctx?.drawImage(towerTiles,2* towerImgWidth,0, towerImgWidth, towerImgHeight, screenCord.x, screenCord.y , towerImgWidth/2 , towerImgHeight/2 );
 }
