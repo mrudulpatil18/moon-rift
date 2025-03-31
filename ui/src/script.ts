@@ -54,8 +54,7 @@ let TILE_HEIGHT_HALF = 8;
 let isDown = false;
 let mousePosStartX: number, mousePosStartY: number;
 let mousePosEndX: number, mousePosEndY: number;
-let SCREEN_X_OFFSET, SCREEN_Y_OFFSET;
-let extraTiles = 7
+let extraTiles = 0
 
 let prevValidPos: Coordinate;
 
@@ -178,7 +177,7 @@ async function createRoom(room = null) {
       prevValidPos = {x: data.startX, y: data.startY};
       // Initialize player after receiving maze data
       thickGrid = getThickWalledMaze(data)
-      extraTiles = thickGrid.length
+      extraTiles = thickGrid.length - 2
       landTileTypeArray = generateRandomTileTypes(thickGrid.length, extraTiles, 7);
       treeTileTypeArray = generateRandomTileTypes(thickGrid.length, extraTiles, 20);
       initializeGame();
@@ -222,20 +221,49 @@ function initializeGame() {
   if (!gameInitialized && data) {
 
 
-    camera = new Camera()!;
+
+
     // Calculate the center of the thickGrid
     const gridCenter = {
       x: (thickGrid.length -1) / 2,
       y: (thickGrid.length -1) / 2
     };
 
-    // Convert grid center to screen coordinates
     const screenCenter = map_to_screen(gridCenter);
-    // Set camera position to center the grid
-    // We need to offset by half the canvas dimensions divided by zoom
+
+    const minGridX = 0;
+    const maxGridX = thickGrid.length - 1;
+    const minGridY = 0;
+    const maxGridY = thickGrid.length - 1;
+
+    const corners = [
+      { x: minGridX, y: minGridY },
+      { x: maxGridX, y: minGridY },
+      { x: minGridX, y: maxGridY },
+      { x: maxGridX, y: maxGridY },
+    ];
+
+    const worldCorners = corners.map(c => map_to_screen(c));
+    const minWorldX = Math.min(...worldCorners.map(c => c.x));
+    const maxWorldX = Math.max(...worldCorners.map(c => c.x));
+    const minWorldY = Math.min(...worldCorners.map(c => c.y));
+    const maxWorldY = Math.max(...worldCorners.map(c => c.y));
+
+    const worldWidth = maxWorldX - minWorldX;
+    const worldHeight = maxWorldY - minWorldY;
+
+    const dpr = window.devicePixelRatio || 1;
+    const canvasWidth = canvas.width / dpr;
+    const canvasHeight = canvas.height / dpr;
+
+    const zoomWidth = canvasWidth / worldWidth;
+    const zoomHeight = canvasHeight / worldHeight;
+    const desiredZoom = Math.min(zoomWidth, zoomHeight) * (thickGrid.length == 9 ? 0.4 : thickGrid.length == 11 ? 0.47 : thickGrid.length == 13 ? 0.54 :  0.6);
+    camera = new Camera(desiredZoom) ;
+
     camera.position = {
-      x: screenCenter.x - (canvas.width / (2 * window.devicePixelRatio * camera.zoom)),
-      y: screenCenter.y - (canvas.height / (2 * window.devicePixelRatio * camera.zoom))
+      x: screenCenter.x - (canvas.width / (2 * dpr * camera.zoom)) + TILE_WIDTH/2,
+      y: screenCenter.y - (canvas.height / (2 * dpr * camera.zoom))
     };
 
 
@@ -526,12 +554,9 @@ function updateTileSizes(num:number){
 }
 
 function map_to_screen(map: Coordinate): Coordinate {
-  SCREEN_X_OFFSET = canvas.width / (4 * camera.zoom);
-  SCREEN_Y_OFFSET = 2* TILE_HEIGHT ;
-
   let screen: Coordinate = {x:0, y:0};
-  screen.x = (map.x - map.y) * TILE_WIDTH_HALF +SCREEN_X_OFFSET ;
-  screen.y = (map.x + map.y) * TILE_HEIGHT_HALF + SCREEN_Y_OFFSET;
+  screen.x = (map.x - map.y) * TILE_WIDTH_HALF ;
+  screen.y = (map.x + map.y) * TILE_HEIGHT_HALF ;
   return screen;
 }
 
@@ -766,7 +791,7 @@ class Camera{
   zoom:number;
   rotate:number;
 
-  constructor( initialScale = 1.8) {
+  constructor( initialScale : number) {
     this.position = {x: 0, y: 0};
     this.zoom = initialScale;
     this.rotate = 0;
