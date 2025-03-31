@@ -338,7 +338,11 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
         //   drawTile(pos, camera, "LEFT_EDGE");
         // }else if(){
         if(dist({x:i, y: j}, center) <= grid.length/2 + extraTiles/2){
-          drawTile(pos, camera, `LAND${landTileTypeArray[i+extraTiles][j+extraTiles]}`);
+          if(i > 0 && i < grid.length-1 && j > 0 && j < grid.length-1){
+            drawTile(pos, camera, "LAND7");
+          }else{
+            drawTile(pos, camera, `LAND${landTileTypeArray[i+extraTiles][j+extraTiles]}`);
+          }
         }
         // }
         if(i < 0 || j < 0 || i >= grid.length || j >= grid.length ){
@@ -407,6 +411,7 @@ const TileType = {
   "LAND4": {x: 4, y: 0},
   "LAND5": {x: 5, y: 0},
   "LAND6": {x: 6, y: 0},
+  "LAND7": {x: 7, y: 0},
   "LEFT_EDGE": {x: 0, y: 1},
   "RIGHT_EDGE": {x: 1, y: 1},
   "CORNER": {x: 2, y: 1},
