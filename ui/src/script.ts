@@ -37,6 +37,7 @@ let secondsPassed = 0,
     oldTimestamp = 0,
     fps: number;
 let canvas: HTMLCanvasElement;
+let ctx: CanvasRenderingContext2D;
 let player: Player
 let camera: Camera;
 let socket: WebSocket | undefined;
@@ -81,6 +82,7 @@ window.addEventListener("keydown", moveSomething, false);
 
 async function startRunner(id = null) {
 
+  ctx = <CanvasRenderingContext2D>canvas.getContext("2d");
 
   accountForDPI(canvas);
     socket = await createRoom(id);
@@ -88,7 +90,6 @@ async function startRunner(id = null) {
 }
 
 function resizeCanvas() {
-  const ctx = canvas.getContext('2d');
   canvas.style.width = window.innerWidth + 'px';
   canvas.style.height = window.innerHeight + 'px';
   canvas.width = window.innerWidth * window.devicePixelRatio;
@@ -136,7 +137,7 @@ function accountForDPI(canvas:HTMLCanvasElement) {
   canvas.height = rect.height * dpr;
 
   // Scale all canvas operations to account for DPI
-  canvas.getContext("2d")!.scale(dpr, dpr);
+  ctx!.scale(dpr, dpr);
 
   // Reset the canvas display size
   canvas.style.width = `${rect.width}px`;
@@ -189,12 +190,14 @@ async function createRoom(room = null) {
       sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL"});
     }
     if(messageData == "UPDATE_MAZE_LEVEL"){
+      gameInitialized = false;
       setTimeout(function() {
         sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL"});
         console.log("Received message:", messageData);
       }, 100);
     }
     if(messageData == "RESET_MAZE"){
+      gameInitialized = false;
       setTimeout(function() {
         sendMessage({ statusMessage: "GET_MAZE_SAME_LEVEL"});
         console.log("Received message:", messageData);
@@ -220,9 +223,36 @@ async function createRoom(room = null) {
 
 function initializeGame() {
   if (!gameInitialized && data) {
-    camera = new Camera(canvas.getContext("2d")!);
-    player = new Player(canvas.getContext("2d")!, thinToThickCord({x: data.startX, y: data.startY}), 19, 6);
+
+
+    camera = new Camera()!;
+    // Calculate the center of the thickGrid
+    const gridCenter = {
+      x: (thickGrid.length -1) / 2,
+      y: (thickGrid.length -1) / 2
+    };
+
+    // Convert grid center to screen coordinates
+    const screenCenter = map_to_screen(gridCenter);
+
+    secondsPassed = 0;
+    oldTimestamp = 0;
+
+
+    // Set camera position to center the grid
+    // We need to offset by half the canvas dimensions divided by zoom
+    camera.position = {
+      x: screenCenter.x - (canvas.width / (2 * window.devicePixelRatio * camera.zoom)),
+      y: screenCenter.y - (canvas.height / (2 * window.devicePixelRatio * camera.zoom))
+    };
+
+
+
+    player = new Player(thinToThickCord({x: data.startX, y: data.startY}), 19, 6);
     gameInitialized = true;
+
+    updateTileSizes(32);
+
     window.requestAnimationFrame(gameLoop);
     console.log("Game initialized with player at: ", data.startX, data.startY);
   }
@@ -231,7 +261,7 @@ function initializeGame() {
 function gameLoop(timeStamp: number): void {
   if (!data || !player) return;
 
-  player.context.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
   camera.applyTransform();
 
   drawMaze(data, thickGrid, camera);
@@ -246,8 +276,7 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
   const { endX, endY } = data;
 
 
-  if (canvas.getContext) {
-    const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
+  if (ctx) {
 
     // Clear previous drawings
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -304,7 +333,6 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
     //   ctx.fill();
     // }
 
-    updateTileSizes(32);
     const center = {x: (grid.length-1)/2, y: (grid.length-1)/2};
     // draw maze
     for(let i = -extraTiles; i < grid.length +extraTiles; i++){
@@ -367,7 +395,6 @@ function showFps(timeStamp: number): void {
   secondsPassed = (timeStamp - oldTimestamp) / 1000;
   oldTimestamp = timeStamp;
   fps = 1 / secondsPassed;
-  const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
   ctx.fillStyle = "gray";
   ctx.font = "20px serif";
   ctx.fillText("FPS: " + fps.toFixed(0), 200, 20);
@@ -662,14 +689,12 @@ function getThickWalledMaze(maze : MazeResponse){
 }
 
 class Player {
-  context: CanvasRenderingContext2D;
   position: ThickCoordinate;
   x!: number;
   y!: number;
   v: number;
   radius: any;
-  constructor (context: CanvasRenderingContext2D, position: ThickCoordinate, v: number, radius:number){
-    this.context = context;
+  constructor (position: ThickCoordinate, v: number, radius:number){
     this.position = position;
     this.v = v;
     this.radius = radius;
@@ -697,7 +722,7 @@ class Player {
     //adjust offset and also get the tower to center
 
     screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-18});
-    this.context.drawImage(mageTiles, 0,0, mageImgWidth, mageImgHeight, screenCord.x, screenCord.y , mageImgWidth, mageImgHeight );
+    ctx.drawImage(mageTiles, 0,0, mageImgWidth, mageImgHeight, screenCord.x, screenCord.y , mageImgWidth, mageImgHeight );
 
   }
 
@@ -751,25 +776,23 @@ class Player {
 }
 
 class Camera{
-  context: CanvasRenderingContext2D;
   position: Coordinate;
   zoom:number;
   rotate:number;
 
-  constructor(context: CanvasRenderingContext2D) {
-    this.context = context;
+  constructor( initialScale = 1.8) {
     this.position = {x: 0, y: 0};
-    this.zoom = 1;
+    this.zoom = initialScale;
     this.rotate = 0;
   }
 
   applyTransform() {
-    this.context.save();
-    this.context.scale(this.zoom, this.zoom);
+    ctx.save();
+    ctx.scale(this.zoom, this.zoom);
   }
 
   resetTransform() {
-    this.context.restore();
+    ctx.restore();
   }
 }
 
@@ -836,8 +859,6 @@ function drawTile(screenCord: Coordinate, camera: Camera, tileType: String ){
  const tilePosCord = TileType[tileType];
  screenCord = applyCamera(screenCord, camera);
 
- const ctx = canvas.getContext('2d');
-
   if(tileType.startsWith("WALL") ) {
     screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT});
   }
@@ -871,8 +892,9 @@ function drawTower(screenCord: Coordinate, camera: Camera){
   // @ts-ignore
   screenCord = applyCamera(screenCord, camera);
 
-  const ctx = canvas.getContext('2d');
+
   //adjust offset and also get the tower to center
   screenCord = moveFromOrigin(screenCord, {x: 0, y: -towerImgHeight/2 +towerImgHeight /8 });
   ctx?.drawImage(towerTiles,2* towerImgWidth,0, towerImgWidth, towerImgHeight, screenCord.x, screenCord.y , towerImgWidth/2 , towerImgHeight/2 );
 }
+
