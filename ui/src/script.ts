@@ -65,7 +65,10 @@ const tileAtlas = new Image();
 tileAtlas.src = "./moon_tileset.png"
 
 const towerTiles = new Image();
-  towerTiles.src = "./Tower-Sheet.png"
+towerTiles.src = "./Tower-Sheet.png"
+
+const mageTiles = new Image();
+mageTiles.src = "./Mage-Sheet.png"
 
 window.addEventListener('mousedown', mousedown)
 window.addEventListener('mousemove', mousemove)
@@ -684,7 +687,18 @@ class Player {
     //     2 * Math.PI
     // );
     // this.context.fill();
-    drawImpOnIsometricMaze(map_to_screen({x: this.position.Tx, y: this.position.Ty}), this.context, camera, true);
+    // drawImpOnIsometricMaze(map_to_screen({x: this.position.Tx, y: this.position.Ty}), this.context, camera, true);
+    const mageImgWidth = 32;
+    const mageImgHeight = 48;
+    // @ts-ignore
+    let screenCord = map_to_screen({x: this.position.Tx ,y: this.position.Ty});
+    screenCord = applyCamera(screenCord, camera);
+
+    //adjust offset and also get the tower to center
+
+    screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-18});
+    this.context.drawImage(mageTiles, 0,0, mageImgWidth, mageImgHeight, screenCord.x, screenCord.y , mageImgWidth, mageImgHeight );
+
   }
 
   updateXY():void{
