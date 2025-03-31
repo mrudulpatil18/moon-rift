@@ -45,6 +45,8 @@ let gameInitialized = false;
 // const SERVER_URL = `mazerunner-ynnb.onrender.com`
 const SERVER_URL = "localhost"
 let thickGrid: Array<Array<number>>;
+let landTileTypeArray: Array<Array<number>>;
+let treeTileTypeArray: Array<Array<number>>;
 
 let TILE_WIDTH = 32;
 let TILE_WIDTH_HALF = 16;
@@ -55,6 +57,7 @@ let isDown = false;
 let mousePosStartX: number, mousePosStartY: number;
 let mousePosEndX: number, mousePosEndY: number;
 let SCREEN_X_OFFSET, SCREEN_Y_OFFSET;
+let extraTiles = 7
 
 let prevValidPos: Coordinate;
 
@@ -170,6 +173,10 @@ async function createRoom(room = null) {
       data = messageData;
       prevValidPos = {x: data.startX, y: data.startY};
       // Initialize player after receiving maze data
+      thickGrid = getThickWalledMaze(data)
+      extraTiles = thickGrid.length
+      landTileTypeArray = generateRandomTileTypes(thickGrid.length, extraTiles, 7);
+      treeTileTypeArray = generateRandomTileTypes(thickGrid.length, extraTiles, 20);
       initializeGame();
     }
     if(messageData == "START_GAME"){
@@ -221,7 +228,6 @@ function gameLoop(timeStamp: number): void {
   player.context.clearRect(0, 0, canvas.width, canvas.height)
   camera.applyTransform();
 
-  thickGrid = getThickWalledMaze(data)
   drawMaze(data, thickGrid, camera);
   camera.resetTransform();
 
@@ -293,11 +299,11 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
     // }
 
     updateTileSizes(32);
-
-    const extraTiles = 0
+    const center = {x: (grid.length-1)/2, y: (grid.length-1)/2};
     // draw maze
     for(let i = -extraTiles; i < grid.length +extraTiles; i++){
       for(let j = -extraTiles; j < grid.length +extraTiles; j++){
+
         let pos = map_to_screen({x: i, y: j});
         // if(i == grid.length+extraTiles-1 && j == grid.length+extraTiles-1){
         //   drawTile(pos, camera, "CORNER");
@@ -305,15 +311,17 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
         //   drawTile(pos, camera, "RIGHT_EDGE");
         // }else if(j == grid.length+extraTiles-1){
         //   drawTile(pos, camera, "LEFT_EDGE");
-        // }else{
-          drawTile(pos, camera, "LAND");
+        // }else if(){
+        if(dist({x:i, y: j}, center) <= grid.length/2 + extraTiles/2){
+          drawTile(pos, camera, `LAND${landTileTypeArray[i+extraTiles][j+extraTiles]}`);
+        }
         // }
-        // if(i < 0 || j < 0 || i >= grid.length || j >= grid.length ){
-        //   if(i % 2 == 0 && j % 2 == 0){
-        //     // drawTile(pos, camera, "TREE");
-        //   }
-        //   continue;
-        // }
+        if(i < 0 || j < 0 || i >= grid.length || j >= grid.length ){
+          if(dist({x:i, y: j}, center) <= grid.length/2 + extraTiles/2){
+            drawTile(pos, camera, `TREE${treeTileTypeArray[i+extraTiles][j+extraTiles]}`);
+          }
+          continue;
+        }
 
         if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1 ){}
 
@@ -335,6 +343,10 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
       }
     }
   }
+}
+
+function dist(pt1: Coordinate, pt2: Coordinate) {
+  return Math.sqrt(Math.pow(pt1.x-pt2.x, 2) + Math.pow(pt1.y-pt2.y, 2));
 }
 
 //show fps
@@ -367,15 +379,25 @@ enum Direction {
 }
 
 const TileType = {
-  "LAND": {x: 1, y: 0},
+  "LAND0": {x: 0, y: 0},
+  "LAND1": {x: 1, y: 0},
+  "LAND2": {x: 2, y: 0},
+  "LAND3": {x: 3, y: 0},
+  "LAND4": {x: 4, y: 0},
+  "LAND5": {x: 5, y: 0},
+  "LAND6": {x: 6, y: 0},
   "LEFT_EDGE": {x: 0, y: 1},
   "RIGHT_EDGE": {x: 1, y: 1},
   "CORNER": {x: 2, y: 1},
   // "LEFT_WALL": {x: 2, y: 2},
   // "RIGHT_WALL": {x: 4, y: 2},
   "WALL": {x: 5, y: 3},
-  "BIG_WALL": {x: 5, y: 3},
-  "TREE": {x: 4, y: 5},
+  "TREE0": {x: 0, y: 4},
+  "TREE1": {x: 1, y: 4},
+  "TREE2": {x: 2, y: 4},
+  "TREE3": {x: 3, y: 4},
+  "TREE4": {x: 4, y: 4},
+  "TREE_EMPTY": {x: 5, y: 4},
 };
 
 type Coordinate = {
@@ -792,11 +814,28 @@ function drawTile(screenCord: Coordinate, camera: Camera, tileType: String ){
 
  const ctx = canvas.getContext('2d');
 
-  if(tileType == "WALL" || tileType == "TREE") {
+  if(tileType.startsWith("WALL") ) {
     screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT});
   }
-  if(tileType == "TREE") {
-    ctx?.drawImage(tileAtlas,(tilePosCord.x) * tsize, (tilePosCord.y-1) * tsize, tsize, 2*tsize, screenCord.x, screenCord.y - tsize, tsize, 2*tsize);
+
+  if(tileType.startsWith("TREE") && +tileType.replace("TREE", "") > 4){
+    return;
   }
-  ctx?.drawImage(tileAtlas,(tilePosCord.x) * tsize, tilePosCord.y * tsize, tsize, tsize, screenCord.x, screenCord.y, tsize, tsize);
+  if(tileType.startsWith("TREE")) {
+    screenCord = moveFromOrigin(screenCord, {x: 0, y: -4 * TILE_HEIGHT});
+    ctx?.drawImage(tileAtlas,(tilePosCord.x) * tsize, (tilePosCord.y) * tsize, tsize, 3*tsize, screenCord.x, screenCord.y , tsize, 3*tsize);
+  }else{
+    ctx?.drawImage(tileAtlas,(tilePosCord.x) * tsize, tilePosCord.y * tsize, tsize, tsize, screenCord.x, screenCord.y, tsize, tsize);
+  }
+}
+
+
+function generateRandomTileTypes(gridSize: number, extraTiles: number, maxValue = 7) {
+  const totalSize = gridSize + 2 * extraTiles;
+
+  return Array.from({length: totalSize}, () =>
+      Array.from({length: totalSize}, () =>
+          Math.floor(Math.random() * maxValue)
+      )
+  );
 }
