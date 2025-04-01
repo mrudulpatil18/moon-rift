@@ -41,7 +41,7 @@ let socket: WebSocket | undefined;
 let gameInitialized = false;
 // const SERVER_URL = `mazerunner-ynnb.onrender.com`
 const SERVER_URL = "localhost"
-let thickGrid: Array<Array<number>>;
+let thickGrid:  Uint8Array;
 let landTileTypeArray: Array<Array<number>>;
 let treeTileTypeArray: Array<Array<number>>;
 
@@ -78,7 +78,7 @@ window.addEventListener("keydown", moveSomething, false);
 async function startRunner(id = null) {
 
   ctx = <CanvasRenderingContext2D>canvas.getContext("2d");
-
+  ctx.imageSmoothingEnabled = false
   accountForDPI(canvas);
     socket = await createRoom(id);
   console.log(socket);
@@ -294,7 +294,7 @@ function gameLoop(timeStamp: number): void {
   window.requestAnimationFrame(gameLoop);
 }
 
-function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
+function drawMaze(data: MazeResponse, grid:Uint8Array, camera: Camera) {
   if (!data) return;
   const { endX, endY } = data;
 
@@ -400,6 +400,7 @@ function drawMaze(data: MazeResponse, grid:number[][], camera: Camera) {
           continue;
         }
 
+        // @ts-ignore
         if(grid[i][j] == 1){
           // drawIsometricTile(pos, ctx, true, camera)
           drawTile(pos, camera, "WALL");
@@ -485,21 +486,25 @@ type ThickCoordinate = {
 //   return path;
 // }
 
-function fetchExitInfo(thickMaze: number[][], curr: ThickCoordinate){
+function fetchExitInfo(thickMaze: Uint8Array, curr: ThickCoordinate){
   // console.log(thickMaze)
   const currX = curr.Tx;
   const currY = curr.Ty;
   const exits = new Array<ThickCoordinate>();
 
+  // @ts-ignore
   if(currX < thickMaze.length && thickMaze[currX+1][currY] == 0){
     exits.push({Tx: currX+1, Ty: currY});
   }
+  // @ts-ignore
   if(currY < thickMaze.length && thickMaze[currX][currY+1] == 0){
     exits.push({Tx: currX, Ty: currY+1});
   }
+  // @ts-ignore
   if(currX-1 > 0 && thickMaze[currX-1][currY] == 0){
     exits.push({Tx: currX-1, Ty: currY});
   }
+  // @ts-ignore
   if(currY-1 > 0 && thickMaze[currX][currY-1] == 0){
     exits.push({Tx: currX, Ty: currY-1});
   }
@@ -661,23 +666,28 @@ function getThickWalledMaze(maze : MazeResponse){
   const { width, height, wallH, wallV } = maze;
   const dimWidth = 2*width + 1;
   const dimHeight = 2*height + 1;
-  const grid = Array.from(Array(dimHeight), () => new Array(dimWidth).fill(0));
+  const grid = new Uint8Array(dimWidth * dimHeight);
   for (let x = 0; x < width; x++) {
       for (let y = 0; y < height; y++) {
         // Draw horizontal walls (when wallH is 1)
         if (wallH[x][y] == 1) {
+
+          // @ts-ignore
           grid[2*x + 1][2*(y+1)] = 1;
         }
         // Draw vertical walls (when wallV is 1)
         if (wallV[x][y] == 1) {
+          // @ts-ignore
           grid[2*(x + 1)][2*y+1] = 1;
         }
+        // @ts-ignore
         grid[2*x][2*y] = 1;
       }
     }
   for(let x = 0; x < dimWidth; x++) {
     for (let y = 0; y < dimHeight; y++) {
       if(x == 0 || y == 0 || x == dimWidth-1 || y == dimHeight-1){
+        // @ts-ignore
         grid[x][y] = 1;
       }
     }
