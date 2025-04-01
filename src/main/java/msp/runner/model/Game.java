@@ -36,5 +36,13 @@ public class Game {
         return player2State.isMazeSolved();
     }
 
+    public int getPlayerMazeLevel(String sessionId) {
+        if(player1SessionId.equals(sessionId)) {
+            return player1State.getLevel();
+        }else{
+            return player2State.getLevel();
+        }
+    }
+
 
 }

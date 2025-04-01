@@ -38,7 +38,6 @@ let ctx: CanvasRenderingContext2D;
 let player: Player
 let camera: Camera;
 let socket: WebSocket | undefined;
-const s = 25; // cell size
 let gameInitialized = false;
 // const SERVER_URL = `mazerunner-ynnb.onrender.com`
 const SERVER_URL = "localhost"
@@ -172,6 +171,7 @@ async function createRoom(room = null) {
 
   socket.onmessage = function(event) {
     const messageData = JSON.parse(event.data);
+    console.log("RECEIVED MESSAGE", messageData);
     if(messageData.hasOwnProperty("wallH")){
       data = messageData;
       prevValidPos = {x: data.startX, y: data.startY};
@@ -201,6 +201,10 @@ async function createRoom(room = null) {
     }
     if(messageData == "INVALID_MOVE"){
       console.log("Invalid Move");
+    }
+    if(messageData == "GAME_OVER_WIN" || messageData == "GAME_OVER_LOSS"){
+      alert(messageData);
+      window.location.reload();
     }
 
   };
@@ -560,10 +564,6 @@ function map_to_screen(map: Coordinate): Coordinate {
   return screen;
 }
 
-function applyCamera(map: Coordinate, camera:Camera) {
-  return{x: map.x - camera.position.x, y: map.y - camera.position.y};
-}
-
 function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D, isBlock = false, camera : Camera) {
   let blockHeight = isBlock ? TILE_HEIGHT_HALF * 1.7: TILE_HEIGHT_HALF * 0.3;
   isoOrigin = isBlock ? moveFromOrigin(isoOrigin, {x: 0, y: -1 * blockHeight}) :  isoOrigin;
@@ -575,16 +575,6 @@ function drawIsometricTile(isoOrigin: Coordinate, ctx: CanvasRenderingContext2D,
   let cubeBottom = moveFromOrigin(isoOrigin, {x: 0, y: TILE_HEIGHT + blockHeight});
   let cubeLeft = moveFromOrigin(isoOrigin, {x: -TILE_WIDTH_HALF, y: TILE_HEIGHT + blockHeight - TILE_WIDTH_HALF/2});
   let cubeRight = moveFromOrigin(isoOrigin, {x: TILE_WIDTH_HALF, y: TILE_HEIGHT + blockHeight - TILE_WIDTH_HALF/2});
-
-  //apply camera effect
-  isoOrigin = applyCamera(isoOrigin, camera);
-  tileRight = applyCamera(tileRight, camera);
-  tileLeft = applyCamera(tileLeft, camera);
-  tileBottom = applyCamera(tileBottom, camera);
-  cubeBottom = applyCamera(cubeBottom, camera);
-  cubeRight = applyCamera(cubeRight, camera);
-  cubeLeft = applyCamera(cubeLeft, camera);
-
 
   ctx.beginPath();
   ctx.moveTo(isoOrigin.x, isoOrigin.y);
@@ -623,9 +613,6 @@ function drawImpOnIsometricMaze(isoOrigin: Coordinate, ctx: CanvasRenderingConte
   isoOrigin = { ...isoOrigin, y: isoOrigin.y - wobble - (isStart ? TILE_HEIGHT : TILE_HEIGHT_HALF * 1.7) };
 
   const blockHeight =  TILE_HEIGHT;
-
-  // Apply camera transformation
-  isoOrigin = applyCamera(isoOrigin, camera);
 
   // Calculate cube points
   const tileLeft = moveFromOrigin(isoOrigin, { x: -TILE_WIDTH_HALF, y: TILE_HEIGHT_HALF });
@@ -728,7 +715,6 @@ class Player {
     const mageImgHeight = 48;
     // @ts-ignore
     let screenCord = map_to_screen({x: this.position.Tx ,y: this.position.Ty});
-    screenCord = applyCamera(screenCord, camera);
 
     //adjust offset and also get the tower to center
 
@@ -800,6 +786,7 @@ class Camera{
   applyTransform() {
     ctx.save();
     ctx.scale(this.zoom, this.zoom);
+    ctx.translate(-this.position.x,- this.position.y);
   }
 
   resetTransform() {
@@ -868,7 +855,6 @@ function drawTile(screenCord: Coordinate, camera: Camera, tileType: String ){
  const tsize = TILE_WIDTH;
  // @ts-ignore
  const tilePosCord = TileType[tileType];
- screenCord = applyCamera(screenCord, camera);
 
   if(tileType.startsWith("WALL") ) {
     screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT});
@@ -900,9 +886,6 @@ function drawTower(screenCord: Coordinate, camera: Camera){
 
   const towerImgWidth = 64;
   const towerImgHeight = 96;
-  // @ts-ignore
-  screenCord = applyCamera(screenCord, camera);
-
 
   //adjust offset and also get the tower to center
   screenCord = moveFromOrigin(screenCord, {x: 0, y: -towerImgHeight/2 +towerImgHeight /8 });

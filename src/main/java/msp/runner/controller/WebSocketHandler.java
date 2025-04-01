@@ -100,10 +100,17 @@ public class WebSocketHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(moveStatus)));
             if(moveStatus == ServerMessage.UPDATE_MAZE_LEVEL){
                 for(WebSocketSession session1 : sessions.get(roomId)) {
-                if(session1 != session) {
-                    session1.sendMessage(new TextMessage(objectMapper.writeValueAsString(ServerMessage.RESET_MAZE)));
+                    if(session1 != session) {
+                        session1.sendMessage(new TextMessage(objectMapper.writeValueAsString(ServerMessage.RESET_MAZE)));
+                    }
                 }
             }
+            if(moveStatus == ServerMessage.GAME_OVER_WIN){
+                for(WebSocketSession session1 : sessions.get(roomId)) {
+                    if(session1 != session) {
+                        session1.sendMessage(new TextMessage(objectMapper.writeValueAsString(ServerMessage.GAME_OVER_LOSS)));
+                    }
+                }
             }}}
 
 //        else if (jsonNode.has("type2SpecificField")) {

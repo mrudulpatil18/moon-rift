@@ -5,4 +5,6 @@ public enum ServerMessage {
     RESET_MAZE,
     UPDATE_MAZE_LEVEL,
     START_GAME,
+    GAME_OVER_WIN,
+    GAME_OVER_LOSS
 }
