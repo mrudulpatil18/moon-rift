@@ -5,35 +5,53 @@ const createButton = document.getElementById("create-button");
 const submitButton = document.getElementById("submit-button");
 const form = document.getElementById("form");
 
-createButton?.addEventListener("click", (e) => {
+const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+
+const dialog = document.querySelector(".dialog");
+const initialOptions =<HTMLElement> document.getElementById("initial-options");
+const joinForm = <HTMLElement>document.getElementById("join-form");
+const waitingMessage = <HTMLElement>document.getElementById("waiting-message");
+const errorMessage = <HTMLElement>document.getElementById("error-message");
+const errorText = <HTMLElement>document.getElementById("error-text");
+
+// Show dialog on page load
+// @ts-ignore
+dialog.showModal();
+
+function showInitialOptions() {
+  initialOptions.hidden = false;
+  joinForm.hidden = true;
+  waitingMessage.hidden = true;
+  errorMessage.hidden = true;
+}
+
+// Create Room button
+document.getElementById("create-button")?.addEventListener("click", (e) => {
   e.preventDefault();
-  joinButton!.hidden = true;
-  createButton.hidden = true;
-  canvas = <HTMLCanvasElement>document.getElementById("canvas");
-  canvas.hidden = false
+  initialOptions.hidden = true;
+  waitingMessage.hidden = false;
   startRunner();
-})
+});
 
-joinButton?.addEventListener("click", (e) => {
+// Join Room button
+document.getElementById("join-button")?.addEventListener("click", (e) => {
   e.preventDefault();
-  form!.hidden = false;
-})
+  initialOptions.hidden = true;
+  joinForm.hidden = false;
+});
 
-submitButton?.addEventListener("click", (e) => {
+// Join form submission
+document.getElementById("join-form")?.addEventListener("submit", (e) => {
   e.preventDefault();
-  joinButton!.hidden = true;
-  createButton!.hidden = true;
-  form!.hidden = true;
-  canvas = <HTMLCanvasElement>document.getElementById("canvas");
-  canvas.hidden = false
-  const input = document.getElementById("room");
   // @ts-ignore
-  startRunner(input.value);
-})
+  const roomCode = document.getElementById("room").value;
+  joinForm.hidden = true;
+  waitingMessage.hidden = false;
+  startRunner(roomCode);
+});
 
 
 let data: MazeResponse;
-let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
 let player: Player
 let camera: Camera;
@@ -41,7 +59,7 @@ let socket: WebSocket | undefined;
 let gameInitialized = false;
 // const SERVER_URL = `mazerunner-ynnb.onrender.com`
 const SERVER_URL = "localhost"
-let thickGrid:  Uint8Array;
+let thickGrid: any;
 let landTileTypeArray: Array<Array<number>>;
 let treeTileTypeArray: Array<Array<number>>;
 
@@ -85,6 +103,10 @@ async function startRunner(id = null) {
 }
 
 function resizeCanvas() {
+  if (!gameInitialized) {
+    return;
+  }
+
   canvas.style.width = window.innerWidth + 'px';
   canvas.style.height = window.innerHeight + 'px';
   canvas.width = window.innerWidth * window.devicePixelRatio;
@@ -183,7 +205,17 @@ async function createRoom(room = null) {
       initializeGame();
     }
     if(messageData == "START_GAME"){
-      sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL"});
+      // @ts-ignore
+      if (dialog.open) {
+        // @ts-ignore
+        dialog.close();
+      }
+      canvas.hidden = false;
+      waitingMessage.hidden = true;
+      initialOptions.hidden = true;
+      joinForm.hidden = true;
+      errorMessage.hidden = true;
+      sendMessage({ statusMessage: "GET_MAZE_NEW_LEVEL" });
     }
     if(messageData == "UPDATE_MAZE_LEVEL"){
       gameInitialized = false;
@@ -216,7 +248,11 @@ async function createRoom(room = null) {
 
   socket.onclose = function(event) {
     console.log("WebSocket connection closed:", event);
-    window.location.reload();
+    if (!gameInitialized) {
+      waitingMessage.hidden = true;
+      errorText.textContent = event.reason || "Connection failed. Please check the room code.";
+      errorMessage.hidden = false;
+    }
   };
   return socket;
 }
@@ -274,6 +310,12 @@ function initializeGame() {
 
     player = new Player(thinToThickCord({x: data.startX, y: data.startY}), 19, 6);
     gameInitialized = true;
+    // @ts-ignore
+    if (dialog.open) {
+      // @ts-ignore
+      dialog.close();
+    }
+    canvas.hidden = false;
 
     updateTileSizes(32);
 
@@ -666,7 +708,7 @@ function getThickWalledMaze(maze : MazeResponse){
   const { width, height, wallH, wallV } = maze;
   const dimWidth = 2*width + 1;
   const dimHeight = 2*height + 1;
-  const grid = new Uint8Array(dimWidth * dimHeight);
+  const grid = new Array(dimWidth).fill(0).map(() => new Uint8Array(dimHeight));
   for (let x = 0; x < width; x++) {
       for (let y = 0; y < height; y++) {
         // Draw horizontal walls (when wallH is 1)
