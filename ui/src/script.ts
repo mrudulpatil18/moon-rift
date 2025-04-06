@@ -1,42 +1,37 @@
 "use strict";
-
-const joinButton = document.getElementById("join-button");
-const createButton = document.getElementById("create-button");
-const submitButton = document.getElementById("submit-button");
-const form = document.getElementById("form");
-
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 
-const dialog = document.querySelector(".dialog");
 const initialOptions =<HTMLElement> document.getElementById("initial-options");
 const joinForm = <HTMLElement>document.getElementById("join-form");
 const waitingMessage = <HTMLElement>document.getElementById("waiting-message");
 const errorMessage = <HTMLElement>document.getElementById("error-message");
 const errorText = <HTMLElement>document.getElementById("error-text");
+const cancelButtons = document.querySelectorAll(".reload")
 
-// Show dialog on page load
+const overlay = <HTMLElement>document.querySelector(".game-ui-overlay");
+const ui = <HTMLElement>document.querySelector(".game-ui");
+
 // @ts-ignore
-dialog.showModal();
+initialOptions.hidden = false;
+joinForm.hidden = true;
+waitingMessage.hidden = true;
+errorMessage.hidden = true;
 
-function showInitialOptions() {
-  initialOptions.hidden = false;
-  joinForm.hidden = true;
-  waitingMessage.hidden = true;
-  errorMessage.hidden = true;
-}
 
 // Create Room button
 document.getElementById("create-button")?.addEventListener("click", (e) => {
-  e.preventDefault();
-  initialOptions.hidden = true;
+  initialOptions.style.display = "none";
   waitingMessage.hidden = false;
+  errorMessage.hidden = true;
+  joinForm.hidden = true;
   startRunner();
 });
 
 // Join Room button
 document.getElementById("join-button")?.addEventListener("click", (e) => {
-  e.preventDefault();
-  initialOptions.hidden = true;
+  initialOptions.style.display = "none";
+  waitingMessage.hidden = true;
+  errorMessage.hidden = true;
   joinForm.hidden = false;
 });
 
@@ -47,9 +42,14 @@ document.getElementById("join-form")?.addEventListener("submit", (e) => {
   const roomCode = document.getElementById("room").value;
   joinForm.hidden = true;
   waitingMessage.hidden = false;
-  startRunner(roomCode);
+  const socket = startRunner(roomCode);
 });
 
+for(let button of cancelButtons){
+  button.addEventListener("click", (e) => {
+   window.location.reload()
+  })
+}
 
 let data: MazeResponse;
 let ctx: CanvasRenderingContext2D;
@@ -84,11 +84,11 @@ towerTiles.src = "./Tower-Sheet.png"
 const mageTiles = new Image();
 mageTiles.src = "./Mage-Sheet.png"
 
-window.addEventListener('mousedown', mousedown)
-window.addEventListener('mousemove', mousemove)
-window.addEventListener('mouseup', mouseup)
+// window.addEventListener('mousedown', mousedown)
+// window.addEventListener('mousemove', mousemove)
+// window.addEventListener('mouseup', mouseup)
 window.addEventListener('resize', resizeCanvas);
-window.addEventListener('wheel', mousewheel);
+// window.addEventListener('wheel', mousewheel);
 
 window.addEventListener("keydown", moveSomething, false);
 // window.onload = startRunner;
@@ -100,6 +100,7 @@ async function startRunner(id = null) {
   accountForDPI(canvas);
     socket = await createRoom(id);
   console.log(socket);
+  return socket;
 }
 
 function resizeCanvas() {
@@ -112,6 +113,7 @@ function resizeCanvas() {
   canvas.width = window.innerWidth * window.devicePixelRatio;
   canvas.height = window.innerHeight * window.devicePixelRatio;
   ctx?.scale(window.devicePixelRatio, window.devicePixelRatio);
+
 }
 
 function moveSomething(e: { keyCode: any; }) {
@@ -175,6 +177,12 @@ async function createRoom(room = null) {
 
     responseData = await response.text(); // Assuming the API returns a string
     console.log(responseData);
+
+    const room_code_val = <HTMLElement>document.querySelector("#roomcode");
+
+    navigator.clipboard.writeText(responseData);
+
+    room_code_val.textContent = room_code_val.textContent + responseData
   }else{
     responseData = room;
     console.log("joining: " + responseData);
@@ -203,13 +211,10 @@ async function createRoom(room = null) {
       landTileTypeArray = generateRandomTileTypes(thickGrid.length, extraTiles, 7);
       treeTileTypeArray = generateRandomTileTypes(thickGrid.length, extraTiles, 20);
       initializeGame();
+
     }
     if(messageData == "START_GAME"){
-      // @ts-ignore
-      if (dialog.open) {
-        // @ts-ignore
-        dialog.close();
-      }
+
       canvas.hidden = false;
       waitingMessage.hidden = true;
       initialOptions.hidden = true;
@@ -235,12 +240,19 @@ async function createRoom(room = null) {
       console.log("Invalid Move");
     }
     if(messageData == "GAME_OVER_WIN" || messageData == "GAME_OVER_LOSS"){
-      alert(messageData);
-      window.location.reload();
+      overlay.hidden = false;
+      ui.hidden = false;
+      const resultDiv = <HTMLElement>document.querySelector("#result-text");
+      const result = <HTMLElement>document.querySelector("#result");
+      result.hidden = false;
+      if(messageData == "GAME_OVER_LOSS"){
+        resultDiv.innerHTML = "<h1 style='color: red'>YOU LOST!</h1>"
+      }else{
+        resultDiv.innerHTML = "<h1 style='color: green'>YOU WON!</h1>"
+      }
     }
 
   };
-
 
   socket.onerror = function(error) {
     console.error("WebSocket error: ", error);
@@ -258,10 +270,9 @@ async function createRoom(room = null) {
 }
 
 function initializeGame() {
+  overlay.hidden = true;
+  ui.hidden = true;
   if (!gameInitialized && data) {
-
-
-
 
     // Calculate the center of the thickGrid
     const gridCenter = {
@@ -310,11 +321,6 @@ function initializeGame() {
 
     player = new Player(thinToThickCord({x: data.startX, y: data.startY}), 19, 6);
     gameInitialized = true;
-    // @ts-ignore
-    if (dialog.open) {
-      // @ts-ignore
-      dialog.close();
-    }
     canvas.hidden = false;
 
     updateTileSizes(32);
@@ -943,4 +949,3 @@ function drawTower(screenCord: Coordinate, camera: Camera){
   screenCord = moveFromOrigin(screenCord, {x: 0, y: -towerImgHeight/2 +towerImgHeight /8 });
   ctx?.drawImage(towerTiles,2* towerImgWidth,0, towerImgWidth, towerImgHeight, screenCord.x, screenCord.y , towerImgWidth/2 , towerImgHeight/2 );
 }
-
