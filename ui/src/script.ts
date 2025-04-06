@@ -332,6 +332,7 @@ function initializeGame() {
     player = new Player(thinToThickCord({x: data.startX, y: data.startY}), 19, 6);
     gameInitialized = true;
     canvas.hidden = false;
+    canMove = true;
 
     updateTileSizes(32);
 
@@ -445,13 +446,16 @@ function drawMaze(data: MazeResponse, grid:Uint8Array, camera: Camera) {
           if(dist({x:i, y: j}, center) <= grid.length/2 + extraTiles/2){
             drawTile(pos, camera, `TREE${treeTileTypeArray[i+extraTiles][j+extraTiles]}`);
           }
-          continue;
         }
 
-        if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1 ){}
 
-        // drawIsometricTile(pos, ctx, false, camera
+      }
+    }
 
+    for(let i = 0; i < grid.length; i++){
+      for(let j = 0; j < grid.length; j++){
+
+        let pos = map_to_screen({x: i, y: j});
         if(i == 2* (endX) + 1 && j == 2* (endY) + 1 && !isEqualCoordinates(thickToThinCord(player.position), {x:endX, y:endY})){
           // drawImpOnIsometricMaze(pos, ctx, camera);
           drawTower(pos, camera);
@@ -502,11 +506,6 @@ type animationState = {
 
 
 const animationStates : animationState[] = [
-  {
-    name: "idle",
-    sheetY: 0,
-    frames: 6
-  },
   {
     name: "idle_up",
     sheetY:21,
@@ -815,6 +814,8 @@ class Player {
   x!: number;
   y!: number;
   v: number;
+  screenX!: number;
+  screenY!: number;
   radius: any;
   playerState: string;
   gameFrame: number;
@@ -822,18 +823,20 @@ class Player {
   spriteAnimations: any[string] = [];
   mageImgWidth: number;
   mageImgHeight: number;
+  futurePos!: Coordinate[];
   constructor (position: ThickCoordinate, v: number, radius:number){
     this.position = position;
     this.v = v;
     this.radius = radius;
-    this.updateXY()
 
-    this.playerState = "idle"
+    this.playerState = "idle_right"
     this.gameFrame = 0;
-    this.staggerFrames = 5
+    this.staggerFrames = 3
 
     this.mageImgWidth = 32
     this.mageImgHeight = 48
+
+    this.futurePos = [];
 
 
     animationStates.forEach((state, index) => {
@@ -854,39 +857,48 @@ class Player {
   }
 
   draw(){
-    // this.context.fillStyle = "green";
-    // this.context.beginPath();
-    // this.context.arc(
-    //     this.x,
-    //     this.y,
-    //     this.radius,
-    //     0,
-    //     2 * Math.PI
-    // );
-    // this.context.fill();
-    // drawImpOnIsometricMaze(map_to_screen({x: this.position.Tx, y: this.position.Ty}), this.context, camera, true);
-
-    // @ts-ignore
-    let screenCord = map_to_screen({x: this.position.Tx ,y: this.position.Ty});
-
+    // Animation logic
     const maxFrame = this.spriteAnimations[this.playerState].loc.length;
-  const position = Math.floor(this.gameFrame / this.staggerFrames) % maxFrame;
-  let frameX = this.mageImgWidth * position;
-  let frameY = this.spriteAnimations[this.playerState].loc[position].y;
+    const position = Math.floor(this.gameFrame / this.staggerFrames) % maxFrame;
+    let frameX = this.mageImgWidth * position;
+    let frameY = this.spriteAnimations[this.playerState].loc[position].y;
 
+    if(!canMove && this.futurePos.length > 0){
+      // We're in the middle of an animation
+      let screenCord = this.futurePos[0];
 
-    //adjust offset and also get the tower to center
+      // Apply the same offset as you do for the standing position
+      screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-15});
 
-    screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-18});
-    ctx.drawImage(mageTiles, frameX, frameY, this.mageImgWidth, this.mageImgHeight, screenCord.x, screenCord.y , this.mageImgWidth, this.mageImgHeight );
+      ctx.drawImage(mageTiles, frameX, frameY, this.mageImgWidth, this.mageImgHeight,
+          screenCord.x, screenCord.y, this.mageImgWidth, this.mageImgHeight );
 
-    this.gameFrame++;
+      this.gameFrame++;
+      this.futurePos.shift();
 
-  }
+      if(this.futurePos.length == 0){
+        canMove = true;
+        // Set the player state back to idle once animation is complete
+        this.playerState = this.playerState.replace('move_', 'idle_');
+      }
+    } else {
+      // Normal rendering when not moving
+      // @ts-ignore
+      let screenCord = map_to_screen({x: this.position.Tx, y: this.position.Ty});
 
-  updateXY():void{
-    // this.x = s + this.position.x * s + s / 2;
-    // this.y = s + this.position.y * s + s / 2;
+      // Apply the offset
+      screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-15});
+
+      ctx.drawImage(mageTiles, frameX, frameY, this.mageImgWidth, this.mageImgHeight,
+          screenCord.x, screenCord.y, this.mageImgWidth, this.mageImgHeight);
+
+      this.gameFrame++;
+
+      // When not moving, revert to idle state
+      if (canMove && this.playerState.includes('move_')) {
+        this.playerState = this.playerState.replace('move_', 'idle_');
+      }
+    }
   }
 
   makeMove(direction: Direction){
@@ -900,44 +912,64 @@ class Player {
     switch (direction){
       case Direction.Down:
         dy = 1;
-        new_state = "idle_down"
+        new_state = "move_down"
         break
       case Direction.Up:
         dy = -1
-        new_state = "idle_up"
+        new_state = "move_up"
         break
       case Direction.Left:
         dx = -1
-        new_state = "idle_left"
+        new_state = "move_left"
         break
       case Direction.Right:
         dx = 1
-        new_state = "idle_right"
+        new_state = "move_right"
         break
     }
     const next = {Tx: curr.Tx + dx, Ty: curr.Ty + dy};
     if (exits.find(e => e.Tx == next.Tx && e.Ty == next.Ty)) {
+      // Set player state before movement
       this.playerState = new_state;
-      this.moveTo(next);
-      if(next.Tx % 2 == 1 && next.Ty %2 == 1){
-        sendMessage({from: prevValidPos, to:thickToThinCord(next)})
+
+      // Calculate positions before actually moving the player
+      const oldScreen = map_to_screen({x: curr.Tx, y: curr.Ty});
+      const newScreen = map_to_screen({x: next.Tx, y: next.Ty});
+
+      const changeX = newScreen.x - oldScreen.x;
+      const changeY = newScreen.y - oldScreen.y;
+
+      // Disable movement during animation
+      canMove = false;
+
+      // Record when we reach a valid position (junction)
+      if(next.Tx % 2 == 1 && next.Ty % 2 == 1){
+        sendMessage({from: prevValidPos, to: thickToThinCord(next)})
         prevValidPos = thickToThinCord(next);
       }
-      //   const path = findNextPath(data, next, curr);
-      //   if(path.length == 0){
-      //     return
-      //   }
-      //   for(let pos of path){
-      //     this.moveTo(pos);
-      //   }
+
+      // Generate animation frames
+      const totalFrames = 8;
+      const positions: Coordinate[] = [];
+      for (let i = 0; i < totalFrames; i++) {
+        const t = i / (totalFrames - 1);
+        const easeT = t * t * (3 - 2 * t); // smoothstep easing
+        const x = oldScreen.x + changeX * easeT;
+        const y = oldScreen.y + changeY * easeT;
+        positions.push({ x, y });
+      }
+      this.futurePos = positions;
+
+      // Actually update the player's position only after creating animation frames
+      this.moveTo(next);
     }
   }
 
   moveTo(next: ThickCoordinate) {
     this.position = next;
-    this.updateXY();
   }
 }
+
 
 class Camera{
   position: Coordinate;
