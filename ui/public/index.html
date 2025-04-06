@@ -33,7 +33,7 @@
             font-size: 12px;
         }
 
-        canvas {
+        #canvas {
             position: fixed;
             top: 0;
             left: 0;
@@ -41,9 +41,16 @@
             height: 100vh;
             image-rendering: pixelated;
             z-index: 0;
-            background-image: url('bg_space_seamless.png');
-            background-repeat: repeat;
-            background-color: var(--bg);
+            /*background-image: url('bg_space_seamless.png');*/
+            /*background-repeat: repeat;*/
+            /*background-color: var(--bg);*/
+        }
+
+        #background-canvas{
+
+            display: block;
+            width: 100%;
+            height: 100%;
         }
 
         /* Dialog styling */
@@ -116,7 +123,7 @@
         /* Input styling */
         .dialog input[type="text"] {
             background: #16121f;
-            color: #ffffff;
+            color: goldenrod;
             border: 2px solid #413773;
             border-radius: 4px;
             padding: 12px;
@@ -185,12 +192,17 @@
             background: rgba(0, 0, 0, 0.7);
             z-index: 999;
         }
+
+        #roomcode{
+            color: goldenrod;
+        }
+
+        .bac
     </style>
 </head>
 
 <body>
 <canvas id="canvas"></canvas>
-<div class="game-ui-overlay"></div>
 <div class="game-ui dialog">
     <div id="initial-options">
         <button id="create-button">Create Room</button>
@@ -205,7 +217,7 @@
     </form>
 
     <div id="waiting-message" hidden>
-        <h2 id="roomcode">Code: </h2>
+        <h2 id="roomcode">{code}</h2>
         <p>Waiting for another player to join...</p>
         <button type="button" class="reload">Cancel</button>
     </div>
@@ -223,6 +235,7 @@
 
 </div>
 
+<canvas id="background-canvas"></canvas>
 </body>
 
 </html>
