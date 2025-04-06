@@ -33,6 +33,9 @@ document.getElementById("join-button")?.addEventListener("click", (e) => {
   waitingMessage.hidden = true;
   errorMessage.hidden = true;
   joinForm.hidden = false;
+  const roomInput = <HTMLElement>document.querySelector("#room")!;
+  roomInput.focus();
+  roomInput.textContent = "";
 });
 
 // Join form submission
@@ -184,7 +187,7 @@ async function createRoom(room = null) {
 
     navigator.clipboard.writeText(responseData);
 
-    room_code_val.textContent = room_code_val.textContent + responseData
+    room_code_val.innerHTML = `<div>${responseData}</div>`
   }else{
     responseData = room;
     console.log("joining: " + responseData);
@@ -496,6 +499,11 @@ type animationState = {
 
 
 const animationStates : animationState[] = [
+  {
+    name: "idle",
+    sheetY: 0,
+    frames: 6
+  },
   {
     name: "idle_up",
     sheetY:21,
@@ -817,7 +825,7 @@ class Player {
     this.radius = radius;
     this.updateXY()
 
-    this.playerState = "idle_right"
+    this.playerState = "idle"
     this.gameFrame = 0;
     this.staggerFrames = 5
 
