@@ -42,7 +42,7 @@ document.getElementById("join-form")?.addEventListener("submit", (e) => {
   const roomCode = document.getElementById("room").value;
   joinForm.hidden = true;
   waitingMessage.hidden = false;
-  const socket = startRunner(roomCode);
+  startRunner(roomCode);
 });
 
 for(let button of cancelButtons){
@@ -74,6 +74,8 @@ let mousePosEndX: number, mousePosEndY: number;
 let extraTiles = 0
 
 let prevValidPos: Coordinate;
+
+let canMove = true;
 
 const tileAtlas = new Image();
 tileAtlas.src = "./moon_tileset.png"
@@ -240,6 +242,8 @@ async function createRoom(room = null) {
       console.log("Invalid Move");
     }
     if(messageData == "GAME_OVER_WIN" || messageData == "GAME_OVER_LOSS"){
+      canMove = false;
+
       overlay.hidden = false;
       ui.hidden = false;
       const resultDiv = <HTMLElement>document.querySelector("#result-text");
@@ -483,6 +487,57 @@ enum Direction {
   Left,
   Right,
 }
+
+type animationState = {
+  name: string;
+  sheetY: number,
+  frames: number // redundant
+}
+
+
+const animationStates : animationState[] = [
+  {
+    name: "idle_up",
+    sheetY:21,
+    frames: 6
+  },
+  {
+    name: "idle_down",
+    sheetY:3,
+    frames: 6
+  },
+  {
+    name: "idle_left",
+    sheetY:9,
+    frames: 6
+  },
+  {
+    name: "idle_right",
+    sheetY:15,
+    frames: 6
+  },
+  {
+    name: "move_up",
+    sheetY:22,
+    frames: 6
+  },
+  {
+    name: "move_down",
+    sheetY:4,
+    frames: 6
+  },
+  {
+    name: "move_left",
+    sheetY:10,
+    frames: 6
+  },
+  {
+    name: "move_right",
+    sheetY:16,
+    frames: 6
+  },
+];
+
 
 const TileType = {
   "LAND0": {x: 0, y: 0},
@@ -750,11 +805,41 @@ class Player {
   y!: number;
   v: number;
   radius: any;
+  playerState: string;
+  gameFrame: number;
+  staggerFrames: number;
+  spriteAnimations: any[string] = [];
+  mageImgWidth: number;
+  mageImgHeight: number;
   constructor (position: ThickCoordinate, v: number, radius:number){
     this.position = position;
     this.v = v;
     this.radius = radius;
     this.updateXY()
+
+    this.playerState = "idle_right"
+    this.gameFrame = 0;
+    this.staggerFrames = 5
+
+    this.mageImgWidth = 32
+    this.mageImgHeight = 48
+
+
+    animationStates.forEach((state, index) => {
+      let frames :any = {
+        loc: []
+      };
+
+      for (let i = 0; i < state.frames; i++) {
+        let positionX = i * this.mageImgWidth;
+        let positionY = state.sheetY * this.mageImgHeight;
+        frames.loc.push({ x: positionX, y: positionY });
+      }
+
+      this.spriteAnimations[state.name] = frames;
+    });
+    console.log(this.spriteAnimations)
+
   }
 
   draw(){
@@ -769,15 +854,22 @@ class Player {
     // );
     // this.context.fill();
     // drawImpOnIsometricMaze(map_to_screen({x: this.position.Tx, y: this.position.Ty}), this.context, camera, true);
-    const mageImgWidth = 32;
-    const mageImgHeight = 48;
+
     // @ts-ignore
     let screenCord = map_to_screen({x: this.position.Tx ,y: this.position.Ty});
+
+    const maxFrame = this.spriteAnimations[this.playerState].loc.length;
+  const position = Math.floor(this.gameFrame / this.staggerFrames) % maxFrame;
+  let frameX = this.mageImgWidth * position;
+  let frameY = this.spriteAnimations[this.playerState].loc[position].y;
+
 
     //adjust offset and also get the tower to center
 
     screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-18});
-    ctx.drawImage(mageTiles, 0,0, mageImgWidth, mageImgHeight, screenCord.x, screenCord.y , mageImgWidth, mageImgHeight );
+    ctx.drawImage(mageTiles, frameX, frameY, this.mageImgWidth, this.mageImgHeight, screenCord.x, screenCord.y , this.mageImgWidth, this.mageImgHeight );
+
+    this.gameFrame++;
 
   }
 
@@ -787,28 +879,34 @@ class Player {
   }
 
   makeMove(direction: Direction){
-    if(isEqualCoordinates(thickToThinCord(this.position), {x: data.endX, y: data.endY})){
+    if(!canMove || isEqualCoordinates(thickToThinCord(this.position), {x: data.endX, y: data.endY})){
       return;
     }
     const curr = this.position;
     const exits = fetchExitInfo(thickGrid, curr);
     let dx =0, dy = 0;
+    let new_state: string;
     switch (direction){
       case Direction.Down:
-        dy = 1
+        dy = 1;
+        new_state = "idle_down"
         break
       case Direction.Up:
         dy = -1
+        new_state = "idle_up"
         break
       case Direction.Left:
         dx = -1
+        new_state = "idle_left"
         break
       case Direction.Right:
         dx = 1
+        new_state = "idle_right"
         break
     }
     const next = {Tx: curr.Tx + dx, Ty: curr.Ty + dy};
     if (exits.find(e => e.Tx == next.Tx && e.Ty == next.Ty)) {
+      this.playerState = new_state;
       this.moveTo(next);
       if(next.Tx % 2 == 1 && next.Ty %2 == 1){
         sendMessage({from: prevValidPos, to:thickToThinCord(next)})
