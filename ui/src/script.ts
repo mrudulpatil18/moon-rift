@@ -124,6 +124,14 @@ function resizeCanvas() {
   canvas.height = window.innerHeight * window.devicePixelRatio;
   ctx?.scale(window.devicePixelRatio, window.devicePixelRatio);
 
+  var canvasB = <HTMLCanvasElement>document.getElementById("background-canvas"),
+      context = <CanvasRenderingContext2D>canvasB.getContext("2d");
+
+  canvasB.style.width = window.innerWidth + 'px';
+  canvasB.style.height = window.innerHeight + 'px';
+  canvasB.width = window.innerWidth * window.devicePixelRatio;
+  canvasB.height = window.innerHeight * window.devicePixelRatio;
+  context?.scale(window.devicePixelRatio, window.devicePixelRatio);
 }
 
 function moveSomething(e: { keyCode: any; }) {
@@ -448,31 +456,25 @@ function drawMaze(data: MazeResponse, grid:Uint8Array, camera: Camera) {
           if(dist({x:i, y: j}, center) <= grid.length/2 + extraTiles/2){
             drawTile(pos, camera, `TREE${treeTileTypeArray[i+extraTiles][j+extraTiles]}`);
           }
+        }else{
+          if(i == 2* (endX) + 1 && j == 2* (endY) + 1 && !isEqualCoordinates(thickToThinCord(player.position), {x:endX, y:endY})){
+            // drawImpOnIsometricMaze(pos, ctx, camera);
+            drawTower(pos, camera);
+            continue;
+          }
+
+          // @ts-ignore
+          if(i <= grid.length && j <= grid.length && grid[i][j] == 1){
+            // drawIsometricTile(pos, ctx, true, camera)
+            drawTile(pos, camera, "WALL");
+          }
+
+          if(isEqualCoordinates(thickToThinCord(player.position), thickToThinCord({Tx:i, Ty: j}))){
+            player.draw()
+          }
         }
 
 
-      }
-    }
-
-    for(let i = 0; i < grid.length; i++){
-      for(let j = 0; j < grid.length; j++){
-
-        let pos = map_to_screen({x: i, y: j});
-        if(i == 2* (endX) + 1 && j == 2* (endY) + 1 && !isEqualCoordinates(thickToThinCord(player.position), {x:endX, y:endY})){
-          // drawImpOnIsometricMaze(pos, ctx, camera);
-          drawTower(pos, camera);
-          continue;
-        }
-
-        // @ts-ignore
-        if(grid[i][j] == 1){
-          // drawIsometricTile(pos, ctx, true, camera)
-          drawTile(pos, camera, "WALL");
-        }
-
-        if(isEqualCoordinates(thickToThinCord(player.position), thickToThinCord({Tx:i, Ty: j}))){
-          player.draw()
-        }
       }
     }
   }
@@ -833,7 +835,7 @@ class Player {
 
     this.playerState = "idle_right"
     this.gameFrame = 0;
-    this.staggerFrames = 3
+    this.staggerFrames = 4
 
     this.mageImgWidth = 32
     this.mageImgHeight = 48
