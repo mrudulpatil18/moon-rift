@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Game</title>
+    <script type="module" src="script.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #1a1525;           /* Dark purplish space tone */
+            --fg: #d1cce2;           /* Light purple for text */
+            --accent: #8f71ff;       /* Accent purple */
+            --border: #3a334d;       /* Dark border */
+            --btn-bg: #251f33;       /* Button background */
+            --btn-hover: #3b3452;    /* Button hover state */
+            --input-bg: #2d263b;     /* Input background */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background: #111111;
+            color: var(--fg);
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+        }
+
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            image-rendering: pixelated;
+            z-index: 30;
+            /*background-image: url('bg_space_seamless.png');*/
+            /*background-repeat: repeat;*/
+            /*background-color: var(--bg);*/
+        }
+
+        #background-canvas{
+            display: block;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            z-index: 0;
+        }
+
+        /* Dialog styling */
+        .dialog {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(90vw, 320px);
+            background: #1f1a2e;
+            border: 3px solid #413773;
+            border-radius: 6px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(143, 113, 255, 0.2);
+            padding: 24px;
+            text-align: center;
+            z-index: 1000;
+            color: #ffffff;
+        }
+
+        /* Button container */
+        #initial-options {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 8px;
+        }
+
+        /* All buttons in dialog */
+        .dialog button {
+            background: linear-gradient(to bottom, #352c59, #2a2346);
+            color: #ffffff;
+            border: 2px solid #564b82;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 11px;
+            cursor: pointer;
+            width: 100%;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+        }
+
+        .dialog button:hover {
+            background: linear-gradient(to bottom, #463a77, #352c59);
+            border-color: #8f71ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .dialog button:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Form styling */
+        #join-form {
+            margin-top: 8px;
+        }
+
+        /* Label styling */
+        .dialog label {
+            display: block;
+            font-size: 10px;
+            margin-bottom: 12px;
+            color: #a394d3;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Input styling */
+        .dialog input[type="text"] {
+            background: #16121f;
+            color: goldenrod;
+            border: 2px solid #413773;
+            border-radius: 4px;
+            padding: 12px;
+            width: 100%;
+            margin: 4px 0 16px 0;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .dialog input[type="text"]:focus {
+            border-color: #8f71ff;
+            outline: none;
+            box-shadow: 0 0 8px rgba(143, 113, 255, 0.4);
+        }
+
+        /* Waiting message styling */
+        #waiting-message p {
+            margin: 20px 0;
+            color: #a394d3;
+            font-size: 11px;
+            position: relative;
+        }
+
+        #waiting-message p:after {
+            content: "...";
+            position: absolute;
+            right: -12px;
+        }
+
+        /* Error message styling */
+        #error-message {
+            padding: 8px 0;
+        }
+
+        #error-text {
+            color: #ff5d7a;
+            margin-bottom: 16px;
+            font-size: 10px;
+            padding: 12px;
+            background: rgba(255, 93, 122, 0.1);
+            border-radius: 4px;
+            border-left: 3px solid #ff5d7a;
+        }
+
+        /* Smaller buttons (Back/Cancel) */
+        .dialog .reload {
+            margin-top: 12px;
+            padding: 8px;
+            background: transparent;
+            border: 2px solid #413773;
+            color: #a394d3;
+        }
+
+        .dialog .reload:hover {
+            background: rgba(143, 113, 255, 0.1);
+            color: #ffffff;
+        }
+
+        .game-ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+        }
+
+        #roomcode{
+            color: goldenrod;
+        }
+
+        .title-imgs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5; /* Below the dialog z-index (1000) */
+            pointer-events: none; /* So users can click through to elements beneath */
+        }
+
+        .left-mage {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            transform: scale(0.9) translate(-20%);
+            transform-origin: left bottom;
+
+            z-index: 2;
+        }
+
+        .right-mage {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            transform: scale(0.7);
+            transform-origin: right bottom;
+            z-index: 2;
+        }
+
+        .maze{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            object-fit: cover;
+            opacity: 0.1;
+        }
+
+
+
+        .game-title {
+            font-size: clamp(60px, 2vw, 100px);
+            color: white;
+            margin-bottom: 16px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 6px rgba(143, 113, 255, 0.5);
+            animation: pulse 2s infinite;
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001;
+        }
+
+        @keyframes pulse {
+            0% { text-shadow: 0 0 4px rgba(143, 113, 255, 0.5); }
+            50% { text-shadow: 0 0 12px rgba(143, 113, 255, 0.8); }
+            100% { text-shadow: 0 0 4px rgba(143, 113, 255, 0.5); }
+        }
+
+        .left-mage, .right-mage {
+            max-height: 100vh;
+            height: auto;
+        }
+
+        /* Handle very small vertical screens */
+        @media (max-height: 500px) {
+            .game-title {
+                top: 10%; /* Move title higher */
+                font-size: clamp(32px, 4vw, 60px); /* Smaller text */
+            }
+
+            .dialog {
+                width: min(95vw, 280px); /* Narrower dialog */
+                padding: 16px;
+            }
+        }
+
+
+
+    </style>
+</head>
+
+<body>
+<canvas id="canvas"></canvas>
+<h1 class="game-title">MOONRIFT</h1>
+
+<div class="title-imgs">
+    <img src="title_mage.png" alt="Left mage" class="left-mage">
+    <img src="title_mage_2.png" alt="Right mage" class="right-mage">
+    <img src="title_maze_3.png" alt="Maze" class="maze">
+</div>
+
+<div class="game-ui dialog">
+    <div id="initial-options">
+        <button id="create-button">Create Room</button>
+        <button id="join-button">Join Room</button>
+    </div>
+
+    <form id="join-form" hidden>
+        <label for="room">Room ID</label><br>
+        <input type="text" id="room" name="room" required><br>
+        <button type="submit">Join</button>
+        <button type="button" class="reload">Back</button>
+    </form>
+
+    <div id="waiting-message" hidden>
+        <h2 id="roomcode">{code}</h2>
+        <p>Waiting for another player to join...</p>
+        <button type="button" class="reload">Cancel</button>
+    </div>
+
+    <div id="error-message" hidden>
+        <p id="error-text"></p>
+        <button type="button" class="reload">Back</button>
+    </div>
+
+    <div id="result" hidden>
+        <div id="result-text"></div>
+        <button type="button" class="reload">Close</button>
+    </div>
+
+
+</div>
+
+<canvas id="background-canvas"></canvas>
+</body>
+</html>
