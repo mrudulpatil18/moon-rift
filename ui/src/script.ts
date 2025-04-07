@@ -65,8 +65,8 @@ let player: Player
 let camera: Camera;
 let socket: WebSocket | undefined;
 let gameInitialized = false;
-// const SERVER_URL = `mazerunner-ynnb.onrender.com`
-const SERVER_URL = "localhost"
+const SERVER_URL = `mazerunner-ynnb.onrender.com`
+// const SERVER_URL = "localhost:8080"
 let thickGrid: any;
 let landTileTypeArray: Array<Array<number>>;
 let treeTileTypeArray: Array<Array<number>>;
@@ -184,7 +184,7 @@ function accountForDPI(canvas:HTMLCanvasElement) {
 async function createRoom(room = null) {
   let responseData;
   if(room == null){
-    let response = await fetch(`http://${SERVER_URL}:8080/room/create`, {
+    let response = await fetch(`https://${SERVER_URL}/room/create`, {
       method: "POST",
     });
 
@@ -207,7 +207,7 @@ async function createRoom(room = null) {
   }
 
 
-  const socket = new WebSocket(`ws://${SERVER_URL}:8080/websocket?room=${responseData}`);
+  const socket = new WebSocket(`wss://${SERVER_URL}/websocket?room=${responseData}`);
 
   socket.onopen = function() {
     console.log("WebSocket connection established.");
@@ -229,7 +229,6 @@ async function createRoom(room = null) {
       landTileTypeArray = generateRandomTileTypes(thickGrid.length, extraTiles, 7);
       treeTileTypeArray = generateRandomTileTypes(thickGrid.length, extraTiles, 20);
       initializeGame();
-
     }
     if(messageData == "START_GAME"){
 
@@ -456,25 +455,28 @@ function drawMaze(data: MazeResponse, grid:Uint8Array, camera: Camera) {
           if(dist({x:i, y: j}, center) <= grid.length/2 + extraTiles/2){
             drawTile(pos, camera, `TREE${treeTileTypeArray[i+extraTiles][j+extraTiles]}`);
           }
-        }else{
-          if(i == 2* (endX) + 1 && j == 2* (endY) + 1 && !isEqualCoordinates(thickToThinCord(player.position), {x:endX, y:endY})){
-            // drawImpOnIsometricMaze(pos, ctx, camera);
-            drawTower(pos, camera);
-            continue;
-          }
-
-          // @ts-ignore
-          if(i <= grid.length && j <= grid.length && grid[i][j] == 1){
-            // drawIsometricTile(pos, ctx, true, camera)
-            drawTile(pos, camera, "WALL");
-          }
-
-          if(isEqualCoordinates(thickToThinCord(player.position), thickToThinCord({Tx:i, Ty: j}))){
-            player.draw()
-          }
+          continue;
         }
 
+        if(i == 0 || j == 0 || i == grid.length-1 || j == grid.length-1 ){}
 
+        // drawIsometricTile(pos, ctx, false, camera
+
+        if(i == 2* (endX) + 1 && j == 2* (endY) + 1 && !isEqualCoordinates(thickToThinCord(player.position), {x:endX, y:endY})){
+          // drawImpOnIsometricMaze(pos, ctx, camera);
+          drawTower(pos, camera);
+          continue;
+        }
+
+        // @ts-ignore
+        if(grid[i][j] == 1){
+          // drawIsometricTile(pos, ctx, true, camera)
+          drawTile(pos, camera, "WALL");
+        }
+
+        if(isEqualCoordinates(thickToThinCord(player.position), thickToThinCord({Tx:i, Ty: j}))){
+          player.draw()
+        }
       }
     }
   }
@@ -872,7 +874,7 @@ class Player {
       let screenCord = this.futurePos[0];
 
       // Apply the same offset as you do for the standing position
-      screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-16});
+      screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-18});
 
       ctx.drawImage(mageTiles, frameX, frameY, this.mageImgWidth, this.mageImgHeight,
           screenCord.x, screenCord.y, this.mageImgWidth, this.mageImgHeight );
@@ -891,7 +893,7 @@ class Player {
       let screenCord = map_to_screen({x: this.position.Tx, y: this.position.Ty});
 
       // Apply the offset
-      screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-16});
+      screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-18});
 
       ctx.drawImage(mageTiles, frameX, frameY, this.mageImgWidth, this.mageImgHeight,
           screenCord.x, screenCord.y, this.mageImgWidth, this.mageImgHeight);
@@ -952,17 +954,30 @@ class Player {
         prevValidPos = thickToThinCord(next);
       }
 
-      // Generate animation frames
-      const totalFrames = 8;
-      const positions: Coordinate[] = [];
-      for (let i = 0; i < totalFrames; i++) {
-        const t = i / (totalFrames - 1);
-        const easeT = t * t * (3 - 2 * t); // smoothstep easing
-        const x = oldScreen.x + changeX * easeT;
-        const y = oldScreen.y + changeY * easeT;
-        positions.push({ x, y });
+      this.futurePos = [];
+
+      const oldScreen = map_to_screen({x: curr.Tx, y: curr.Ty});
+      const newScreen = map_to_screen({x: next.Tx, y: next.Ty});
+
+      const changeX = newScreen.x - oldScreen.x;
+      const changeY = newScreen.y - oldScreen.y;
+
+      const minFrames = 12; // Minimum frames to show movement visibly
+
+      const stepX = changeX / minFrames;
+      const stepY = changeY / minFrames;
+
+      let x = oldScreen.x;
+      let y = oldScreen.y;
+
+      for (let i = 0; i < minFrames; i++) {
+        this.futurePos.push({x, y});
+        x += stepX;
+        y += stepY;
       }
-      this.futurePos = positions;
+
+      this.futurePos.push({x: newScreen.x, y: newScreen.y});
+
 
       // Actually update the player's position only after creating animation frames
       this.moveTo(next);
