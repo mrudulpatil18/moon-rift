@@ -34,7 +34,7 @@ public class GameService {
     public ServerMessage handleMove(String roomId, PlayerMove playerMove, String sessionId) {
         if(activeGames.get(roomId).updatePlayerState(playerMove, sessionId)){
             if(activeGames.get(roomId).isMazeSolved(sessionId)){
-                return activeGames.get(roomId).getPlayerMazeLevel(sessionId) == 6 ? ServerMessage.GAME_OVER_WIN :  ServerMessage.UPDATE_MAZE_LEVEL;
+                return activeGames.get(roomId).getPlayerMazeLevel(sessionId) == 12 ? ServerMessage.GAME_OVER_WIN :  ServerMessage.UPDATE_MAZE_LEVEL;
             }
             return null;
         }
