@@ -282,6 +282,8 @@ async function createRoom(room = null) {
 
 function initializeGame() {
   ui.hidden = true;
+  document.querySelector<HTMLElement>('.title-imgs')!.style.display = 'none';
+  document.querySelector<HTMLElement>('.game-title')!.style.display = 'none';
   if (!gameInitialized && data) {
 
     // Calculate the center of the thickGrid
@@ -868,7 +870,7 @@ class Player {
       let screenCord = this.futurePos[0];
 
       // Apply the same offset as you do for the standing position
-      screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-15});
+      screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-16});
 
       ctx.drawImage(mageTiles, frameX, frameY, this.mageImgWidth, this.mageImgHeight,
           screenCord.x, screenCord.y, this.mageImgWidth, this.mageImgHeight );
@@ -887,7 +889,7 @@ class Player {
       let screenCord = map_to_screen({x: this.position.Tx, y: this.position.Ty});
 
       // Apply the offset
-      screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-15});
+      screenCord = moveFromOrigin(screenCord, {x: 0, y: -TILE_HEIGHT-16});
 
       ctx.drawImage(mageTiles, frameX, frameY, this.mageImgWidth, this.mageImgHeight,
           screenCord.x, screenCord.y, this.mageImgWidth, this.mageImgHeight);
