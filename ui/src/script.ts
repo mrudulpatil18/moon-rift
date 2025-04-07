@@ -938,13 +938,6 @@ class Player {
       // Set player state before movement
       this.playerState = new_state;
 
-      // Calculate positions before actually moving the player
-      const oldScreen = map_to_screen({x: curr.Tx, y: curr.Ty});
-      const newScreen = map_to_screen({x: next.Tx, y: next.Ty});
-
-      const changeX = newScreen.x - oldScreen.x;
-      const changeY = newScreen.y - oldScreen.y;
-
       // Disable movement during animation
       canMove = false;
 
